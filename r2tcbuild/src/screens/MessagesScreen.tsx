@@ -160,7 +160,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
   const [gifResults, setGifResults] = useState<string[]>([]);
   const searchGifs = async (q: string) => {
     try {
-      const key = 'dc6zaTOxFJmzC';
+      const key = 'YCohpE3qpXHTcaBbFlBWskYssH6rqLQ4';
       const ep = q.trim()
         ? 'https://api.giphy.com/v1/gifs/search?api_key=' + key + '&q=' + encodeURIComponent(q) + '&limit=24&rating=pg-13'
         : 'https://api.giphy.com/v1/gifs/trending?api_key=' + key + '&limit=24&rating=pg-13';
