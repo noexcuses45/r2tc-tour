@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL, SUPABASE_KEY, getSession } from './supabase';
+import { initScoreQueue, enqueueScore, flushScoreQueue, QueuedScore } from './offlineQueue';
 import { Round } from '../types';
 import { playingHandicap, strokesReceived } from './scoring';
 import { makeId } from '../storage';
@@ -332,20 +333,54 @@ export async function getEvent(eventId: string): Promise<any> {
   } catch { return null; }
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise(function (resolve, reject) {
+    const t = setTimeout(function () { reject(new Error('timeout')); }, ms);
+    p.then(function (v) { clearTimeout(t); resolve(v); }, function (e) { clearTimeout(t); reject(e); });
+  });
+}
+
+async function sendLiveScoreRaw(event_id: string, player_name: string, handicap: number, group_no: number, hole_number: number, strokes: number): Promise<boolean> {
+  const res = await fetch(rest('live_scores?on_conflict=event_id,player_name,hole_number'), {
+    method: 'POST',
+    headers: { ...(await authHeaders()), Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify([{ event_id: event_id, player_name: player_name, handicap: handicap, group_no: group_no, hole_number: hole_number, strokes: strokes }]),
+  });
+  if (res.ok) return true;
+  return res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 429;
+}
+
+async function sendClearScoreRaw(event_id: string, player_name: string, hole_number: number): Promise<boolean> {
+  const res = await fetch(rest('live_scores?event_id=eq.' + event_id + '&player_name=eq.' + encodeURIComponent(player_name) + '&hole_number=eq.' + hole_number), { method: 'DELETE', headers: await authHeaders() });
+  if (res.ok) return true;
+  return res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 429;
+}
+
+initScoreQueue(function (item: QueuedScore): Promise<boolean> {
+  if (item.op === 'set') return sendLiveScoreRaw(item.event_id, item.player_name, item.handicap, item.group_no, item.hole_number, item.strokes as number);
+  return sendClearScoreRaw(item.event_id, item.player_name, item.hole_number);
+});
+
 export async function setLiveScore(eventId: string, playerName: string, handicap: number, groupNo: number, holeNumber: number, strokes: number): Promise<void> {
-  try {
-    await fetch(rest('live_scores?on_conflict=event_id,player_name,hole_number'), {
-      method: 'POST',
-      headers: { ...(await authHeaders()), Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify([{ event_id: eventId, player_name: playerName, handicap: handicap, group_no: groupNo, hole_number: holeNumber, strokes: strokes }]),
-    });
-  } catch {}
+  try { await flushScoreQueue(); } catch (e) {}
+  let ok = false;
+  try { ok = await withTimeout(sendLiveScoreRaw(eventId, playerName, handicap, groupNo, holeNumber, strokes), 10000); } catch (e) { ok = false; }
+  if (!ok) {
+    try {
+      await enqueueScore({ k: eventId + '|' + String(playerName || '').toLowerCase() + '|' + holeNumber, op: 'set', event_id: eventId, player_name: playerName, handicap: handicap, group_no: groupNo, hole_number: holeNumber, strokes: strokes, ts: Date.now() });
+    } catch (e) {}
+  }
 }
 
 export async function clearLiveScore(eventId: string, playerName: string, holeNumber: number): Promise<void> {
-  try {
-    await fetch(rest('live_scores?event_id=eq.' + eventId + '&player_name=eq.' + encodeURIComponent(playerName) + '&hole_number=eq.' + holeNumber), { method: 'DELETE', headers: await authHeaders() });
-  } catch {}
+  try { await flushScoreQueue(); } catch (e) {}
+  let ok = false;
+  try { ok = await withTimeout(sendClearScoreRaw(eventId, playerName, holeNumber), 10000); } catch (e) { ok = false; }
+  if (!ok) {
+    try {
+      await enqueueScore({ k: eventId + '|' + String(playerName || '').toLowerCase() + '|' + holeNumber, op: 'clear', event_id: eventId, player_name: playerName, handicap: 0, group_no: 0, hole_number: holeNumber, strokes: null, ts: Date.now() });
+    } catch (e) {}
+  }
 }
 
 export async function updateEventConfig(eventId: string, patch: any): Promise<{ ok: boolean; status: number; count: number; error: string }> {
