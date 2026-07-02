@@ -21,6 +21,14 @@ const baseHeaders = {
   'Content-Type': 'application/json',
 };
 
+async function readHeaders(): Promise<any> {
+  try {
+    const session = await getSession();
+    if (session && (session as any).access_token) return { ...baseHeaders, Authorization: 'Bearer ' + (session as any).access_token };
+  } catch (e) {}
+  return baseHeaders;
+}
+
 const authUrl = (path: string) => `${SUPABASE_URL}/auth/v1/${path}`;
 const restUrl = (path: string) => `${SUPABASE_URL}/rest/v1/${path}`;
 
@@ -32,7 +40,7 @@ async function saveSession(s: Session | null): Promise<void> {
 async function refreshSession(s: Session): Promise<Session> {
   const res = await fetch(authUrl('token?grant_type=refresh_token'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({ refresh_token: s.refresh_token }),
   });
   if (!res.ok) {
@@ -67,7 +75,7 @@ export async function getSession(): Promise<Session | null> {
 export async function requestLoginCode(email: string): Promise<void> {
   const res = await fetch(authUrl('otp'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({ email: email.trim(), create_user: true }),
   });
   if (!res.ok) {
@@ -82,7 +90,7 @@ export async function verifyLoginCode(
 ): Promise<Session> {
   const res = await fetch(authUrl('verify'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({
       type: 'email',
       email: email.trim(),
@@ -128,8 +136,8 @@ export async function fetchSupabaseLeaderboards(): Promise<TourLeaderboards | nu
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 6000);
     const [pRes, cRes] = await Promise.all([
-      fetch(restUrl('tour_points_leaderboard?select=*'), { headers: baseHeaders, signal: ctrl.signal }),
-      fetch(restUrl('contest_leaderboard?select=*'), { headers: baseHeaders, signal: ctrl.signal }),
+      fetch(restUrl('tour_points_leaderboard?select=*'), { headers: await readHeaders(), signal: ctrl.signal }),
+      fetch(restUrl('contest_leaderboard?select=*'), { headers: await readHeaders(), signal: ctrl.signal }),
     ]);
     clearTimeout(timer);
     if (!pRes.ok || !cRes.ok) return null;
@@ -302,7 +310,7 @@ export async function signUp(
 ): Promise<{ session: Session | null; needsConfirm: boolean }> {
   const res = await fetch(authUrl('signup'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({
       email: email.trim(),
       password,
@@ -336,7 +344,7 @@ export async function signInWithPassword(
 ): Promise<Session> {
   const res = await fetch(authUrl('token?grant_type=password'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({ email: email.trim(), password }),
   });
   const json = await res.json();
@@ -401,7 +409,7 @@ export async function getProfile(): Promise<Profile | null> {
 /** Find any player's public profile by their display name. */
 export async function fetchPlayerByName(name: string): Promise<Profile | null> {
   try {
-    const res = await fetch(restUrl('players?select=*'), { headers: baseHeaders });
+    const res = await fetch(restUrl('players?select=*'), { headers: await readHeaders() });
     if (!res.ok) return null;
     const rows = await res.json();
     const target = (name || '').trim().toLowerCase();
@@ -436,7 +444,7 @@ export interface RosterPlayer {
 /** All registered players (the tour roster). */
 export async function fetchAllPlayers(): Promise<RosterPlayer[]> {
   try {
-    const res = await fetch(restUrl('players?select=id,auth_user_id,name,email,golf_id,handicap,avatar_url&order=name.asc'), { headers: baseHeaders });
+    const res = await fetch(restUrl('players?select=id,auth_user_id,name,email,golf_id,handicap,avatar_url&order=name.asc'), { headers: await readHeaders() });
     if (!res.ok) return [];
     const rows = await res.json();
     return (rows || []).map((r: any) => ({
@@ -466,7 +474,7 @@ export async function updateEmail(session: Session, newEmail: string): Promise<v
 export async function requestPasswordReset(email: string): Promise<void> {
   await fetch(authUrl('recover'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({ email: email.trim() }),
   });
 }
@@ -474,7 +482,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 export async function resetPasswordWithCode(email: string, code: string, newPassword: string): Promise<Session> {
   const res = await fetch(authUrl('verify'), {
     method: 'POST',
-    headers: baseHeaders,
+    headers: await readHeaders(),
     body: JSON.stringify({ type: 'recovery', email: email.trim(), token: code.trim() }),
   });
   const json = await res.json();
