@@ -610,18 +610,27 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data:
 }
 
 export async function notifyEmail(email: string, title: string, body: string, data?: any): Promise<void> {
-  const want = String(email || '').toLowerCase();
-  const all = await fetchPushTokens();
-  const tokens = all.filter((r) => String(r.email || '').toLowerCase() === want).map((r) => r.token);
-  await sendExpoPush(tokens, title, body, data);
+  try {
+    const base = rest('').replace('/rest/v1/', '');
+    await fetch(base + '/functions/v1/send-push', {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ emails: [String(email || '').toLowerCase()], title, body, data: data || {} }),
+    });
+  } catch (e) {}
 }
 
 export async function notifyEveryoneExceptMe(title: string, body: string, data?: any): Promise<void> {
-  let mine = '';
-  try { mine = (await AsyncStorage.getItem('r2tc.pushToken')) || ''; } catch (e) {}
-  const all = await fetchPushTokens();
-  const tokens = all.map((r) => r.token).filter((t) => t && t !== mine);
-  await sendExpoPush(tokens, title, body, data);
+  try {
+    let mine = '';
+    try { mine = (await AsyncStorage.getItem('r2tc.pushToken')) || ''; } catch (e) {}
+    const base = rest('').replace('/rest/v1/', '');
+    await fetch(base + '/functions/v1/send-push', {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ all: true, excludeToken: mine, title, body, data: data || {} }),
+    });
+  } catch (e) {}
 }
 
 export async function registerForPush(email: string): Promise<void> {
