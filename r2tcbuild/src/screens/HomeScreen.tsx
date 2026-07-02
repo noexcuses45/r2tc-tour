@@ -1344,6 +1344,27 @@ export default function HomeScreen({
                 <Text style={styles.pMetricLbl}>Tour Rank</Text>
               </View>
             </View>
+              {myRoundTotals.length >= 2 ? (
+                <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>FORM · LAST {Math.min(myRoundTotals.length, 10)} ROUNDS (STABLEFORD)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 74 }}>
+                    {myRoundTotals.slice(0, 10).reverse().map((r: { date: string; total: number; stableford: number }, i: number, arr: { stableford: number }[]) => {
+                      const vals = arr.map((x) => Number(x.stableford) || 0);
+                      const mx = Math.max.apply(null, vals.concat([1]));
+                      const v = Number(r.stableford) || 0;
+                      const h = Math.max(6, Math.round((v / mx) * 54));
+                      const best = v === mx && v > 0;
+                      return (
+                        <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                          <Text style={{ color: best ? '#31c46b' : colors.textMuted, fontSize: 10, fontWeight: best ? '800' : '600', marginBottom: 2 }}>{v}</Text>
+                          <View style={{ width: 16, height: h, borderRadius: 5, backgroundColor: best ? '#31c46b' : '#3b82f6', opacity: best ? 1 : 0.85 }} />
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
 
             <Modal visible={friendsOpen} animationType="slide" transparent onRequestClose={() => setFriendsOpen(false)}>
               <View style={styles.fmOverlay}>
