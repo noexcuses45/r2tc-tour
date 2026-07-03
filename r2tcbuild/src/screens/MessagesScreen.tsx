@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReportMenu from '../components/ReportMenu';
 import {
   Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -272,6 +273,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
           {item.text ? <Text style={[styles.bText, mineMsg && { color: '#fff' }]}>{item.text}</Text> : null}
                 {item.created_at ? <Text style={{ fontSize: 10, marginTop: 3, alignSelf: 'flex-end', color: mineMsg ? 'rgba(255,255,255,0.7)' : '#9A9A9A' }}>{new Date(item.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text> : null}
           </TouchableOpacity>
+            {!mineMsg ? (<ReportMenu contentType="dm_message" contentId={String(item.id)} authorName={item.from_name || item.from_email} authorEmail={item.from_email} />) : null}
           {reactions.filter((r) => r.message_id === item.id).length ? (
             <View style={[styles.reactRow, mineMsg ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
               {Array.from(new Set(reactions.filter((r) => r.message_id === item.id).map((r) => r.type))).map((tp) => (

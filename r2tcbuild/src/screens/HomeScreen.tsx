@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ReportMenu from '../components/ReportMenu';
 import { Alert as RNAlert, Linking as RNLinking } from 'react-native';
 import * as ExpoUpdates from 'expo-updates';
 import { deleteMyAccount as doDeleteAccount, signOut as doSignOut } from '../logic/supabase';
@@ -983,7 +984,7 @@ export default function HomeScreen({
           ) : (
             posts.map((p) => (
               <View key={p.id} style={styles.feedItem}>
-                <Text style={styles.feedAuthor}>{p.author}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={styles.feedAuthor}>{p.author}</Text><ReportMenu contentType="feed_post" contentId={String(p.id)} authorName={p.author} /></View>
                 {p.text ? <Text style={styles.feedBody}>{p.text}</Text> : null}
                 {p.media_url ? (
                   p.media_type === 'video' ? (
@@ -1285,8 +1286,8 @@ export default function HomeScreen({
                     <TouchableOpacity style={styles.glSave} onPress={savePassword} disabled={glSaving}><Text style={styles.glSaveTxt}>Update password</Text></TouchableOpacity>
                     {glMsg ? <Text style={styles.glMsg}>{glMsg}</Text> : null}
                 <View style={{ marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
-                  <TouchableOpacity onPress={() => RNLinking.openURL('https://www.r2tctour.com/privacy')} style={{ paddingVertical: 12 }}><Text style={{ color: '#fff', fontSize: 15 }}>Privacy Policy</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => RNLinking.openURL('https://www.r2tctour.com/terms')} style={{ paddingVertical: 12 }}><Text style={{ color: '#fff', fontSize: 15 }}>Terms of Use</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => RNLinking.openURL('https://unxfoxfzfvqjtakcfwhs.supabase.co/functions/v1/policies/privacy')} style={{ paddingVertical: 12 }}><Text style={{ color: '#fff', fontSize: 15 }}>Privacy Policy</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => RNLinking.openURL('https://unxfoxfzfvqjtakcfwhs.supabase.co/functions/v1/policies/terms')} style={{ paddingVertical: 12 }}><Text style={{ color: '#fff', fontSize: 15 }}>Terms of Use</Text></TouchableOpacity>
                   <TouchableOpacity onPress={() => RNAlert.alert('Sign out', 'Are you sure you want to sign out?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: async () => { await doSignOut(); try { await ExpoUpdates.reloadAsync(); } catch (e) {} } }])} style={{ paddingVertical: 12 }}><Text style={{ color: '#fff', fontSize: 15 }}>Sign Out</Text></TouchableOpacity>
                   <TouchableOpacity onPress={() => RNAlert.alert('Delete account', 'This permanently deletes your account and personal data and cannot be undone.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => { try { await doDeleteAccount(); try { await ExpoUpdates.reloadAsync(); } catch (e) {} } catch (e) { RNAlert.alert('Error', 'Could not delete your account.'); } } }])} style={{ paddingVertical: 12 }}><Text style={{ color: '#C0392B', fontSize: 15, fontWeight: '800' }}>Delete Account</Text></TouchableOpacity>
                 </View>
