@@ -330,7 +330,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
           ) : null}
           <View style={styles.composer}>
             <TouchableOpacity style={styles.attachBtn} onPress={attachPhoto} activeOpacity={0.7}><Text style={styles.attachIcon}>{uploadingImg ? '…' : '📷'}</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.attachBtn} onPress={() => { setGifOpen(true); setGifQuery(''); searchGifs(''); }} activeOpacity={0.7}><Text style={[styles.attachIcon, { fontSize: 13, fontWeight: '800' }]}>GIF</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.attachBtn} onPress={() => { setGifOpen(true); setGifQuery(''); searchGifs(''); }} activeOpacity={0.7}><Text style={[styles.attachIcon, { fontSize: 13, fontWeight: '800', color: '#31c46b' }]}>GIF</Text></TouchableOpacity>
               <TextInput style={styles.cInput} placeholder="Message…" placeholderTextColor={colors.textMuted} value={draft} onChangeText={setDraft} multiline />
             <TouchableOpacity style={styles.sendBtn} onPress={send} activeOpacity={0.9}><Text style={styles.sendTxt}>Send</Text></TouchableOpacity>
           </View>
@@ -350,6 +350,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
                 </TouchableOpacity>
               ))}
             </GifScroll>
+              {gifResults.length === 0 ? (<Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 10 }}>No GIFs loaded - check your internet and try another search.</Text>) : null}
             <Text style={{ color: colors.textMuted, fontSize: 10, textAlign: 'center', marginTop: 4 }}>Powered by GIPHY</Text>
           </View>
         </View>
