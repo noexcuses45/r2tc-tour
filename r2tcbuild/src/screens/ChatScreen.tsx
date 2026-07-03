@@ -1,9 +1,6 @@
 import ReportMenu from '../components/ReportMenu';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView,
-  StyleSheet, Text, TextInput, TouchableOpacity, View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { fetchMessages, sendMessage, uploadMedia, LiveMessage } from '../logic/liveEvents';
@@ -52,6 +49,25 @@ export default function ChatScreen({ round }: { round: Round }) {
     setMedia({ uri: a.uri, type: isVideo ? 'video' : 'image', contentType: isVideo ? 'video/mp4' : 'image/jpeg' });
   };
 
+  const [gifOpen, setGifOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifResults, setGifResults] = useState<string[]>([]);
+  const searchGifs = async (q: string) => {
+    try {
+      const key = 'YCohpE3qpXHTcaBbFlBWskYssH6rqLQ4';
+      const ep = q.trim()
+        ? 'https://api.giphy.com/v1/gifs/search?api_key=' + key + '&q=' + encodeURIComponent(q) + '&limit=24&rating=pg-13'
+        : 'https://api.giphy.com/v1/gifs/trending?api_key=' + key + '&limit=24&rating=pg-13';
+      const r = await fetch(ep);
+      const j = await r.json();
+      setGifResults((j.data || []).map((g: any) => g.images && g.images.fixed_height && g.images.fixed_height.url).filter(Boolean));
+    } catch (e) { setGifResults([]); }
+  };
+  const sendGifMsg = async (url: string) => {
+    setGifOpen(false); setGifQuery(''); setSending(true);
+    try { await sendMessage(eventId, me || 'Player', '', url, 'image'); } catch (e) {}
+    setSending(false); load();
+  };
   const send = async () => {
     const t = text.trim();
     if (!t && !media) return;
@@ -129,7 +145,21 @@ export default function ChatScreen({ round }: { round: Round }) {
           <TouchableOpacity onPress={() => setMedia(null)}><Text style={styles.removeMedia}>Remove</Text></TouchableOpacity>
         </View>
       ) : null}
-      <View style={styles.inputRow}>
+      {gifOpen ? (
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.85)', padding: 8, borderRadius: 12, marginBottom: 6 }}>
+            <TextInput style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', paddingHorizontal: 10, paddingVertical: 6, fontSize: 13 }} placeholder="Search GIFs..." placeholderTextColor="#999" value={gifQuery} onChangeText={(v: string) => { setGifQuery(v); searchGifs(v); }} />
+            <ScrollView horizontal style={{ marginTop: 8 }} keyboardShouldPersistTaps="handled">
+              {gifResults.map((u, i) => (
+                <TouchableOpacity key={i} onPress={() => { sendGifMsg(u); }}>
+                  <Image source={{ uri: u }} style={{ width: 120, height: 90, borderRadius: 8, marginRight: 6, backgroundColor: '#222' }} />
+                </TouchableOpacity>
+              ))}
+              {gifResults.length === 0 ? (<Text style={{ color: '#999', fontSize: 12, padding: 10 }}>No GIFs loaded - check your internet.</Text>) : null}
+            </ScrollView>
+            <Text style={{ color: '#777', fontSize: 9, textAlign: 'center', marginTop: 4 }}>Powered by GIPHY</Text>
+          </View>
+        ) : null}
+        <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
           placeholder="Message the field…"
@@ -141,7 +171,10 @@ export default function ChatScreen({ round }: { round: Round }) {
         <TouchableOpacity style={styles.mediaBtn} onPress={pickMedia}>
           <Text style={styles.mediaIcon}>📷</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendBtn} onPress={send} disabled={sending}>
+        <TouchableOpacity style={styles.mediaBtn} onPress={() => { const nv = !gifOpen; setGifOpen(nv); if (nv) { setGifQuery(''); searchGifs(''); } }}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#31c46b' }}>GIF</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sendBtn} onPress={send} disabled={sending}>
           <Text style={styles.sendText}>{sending ? '…' : 'Send'}</Text>
         </TouchableOpacity>
       </View>
