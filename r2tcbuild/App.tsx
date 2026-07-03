@@ -3,13 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { registerForPush } from './src/logic/liveEvents';
 import { markGroupFinished, fetchMyFinishedRounds, buildFinishedRoundFromEvent, deleteLiveEvent, fetchMessages } from './src/logic/liveEvents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import ScorecardScreen from './src/screens/ScorecardScreen';
@@ -58,7 +52,7 @@ type Screen =
   | 'gallery';
 type RoundTab = 'score' | 'gps' | 'leaderboard' | 'scorecard' | 'chat' | 'settings';
 
-export default function App() {
+function AppMain() {
   const [screen, setScreen] = useState<Screen>('home');
   const [dmTarget, setDmTarget] = useState<{ email: string; name: string; itemTitle?: string; itemImage?: string | null } | null>(null);
   const resolveMyGroupIndex = async (ev: any) => {
@@ -671,3 +665,24 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 });
+
+
+const BOOT_IMG = require('./assets/boot.jpg');
+
+export default function App() {
+  const [bootVisible, setBootVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setBootVisible(false), 2500);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <View style={{ flex: 1 }}>
+      <AppMain />
+      {bootVisible ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b3d1f', zIndex: 999 }}>
+          <Image source={BOOT_IMG} style={{ flex: 1, width: '100%', height: '100%' }} resizeMode="cover" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
