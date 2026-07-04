@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/boot.jpg",
-      "resizeMode": "cover",
+      "resizeMode": "contain",
       "backgroundColor": "#0b3d1f"
     },
     "ios": {

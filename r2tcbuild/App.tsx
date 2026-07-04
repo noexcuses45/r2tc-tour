@@ -680,7 +680,7 @@ export default function App() {
       <AppMain />
       {bootVisible ? (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b3d1f', zIndex: 999 }}>
-          <Image source={BOOT_IMG} style={{ flex: 1, width: '100%', height: '100%' }} resizeMode="cover" />
+          <Image source={BOOT_IMG} style={{ flex: 1, width: '100%', height: '100%' }} resizeMode="contain" />
         </View>
       ) : null}
     </View>
