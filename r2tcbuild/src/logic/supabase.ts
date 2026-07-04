@@ -40,7 +40,7 @@ async function saveSession(s: Session | null): Promise<void> {
 async function refreshSession(s: Session): Promise<Session> {
   const res = await fetch(authUrl('token?grant_type=refresh_token'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({ refresh_token: s.refresh_token }),
   });
   if (!res.ok) {
@@ -59,7 +59,7 @@ async function refreshSession(s: Session): Promise<Session> {
 }
 
 /** Current session, auto-refreshed. Null when signed out. */
-export async function getSession(): Promise<Session | null> {
+async function getSessionInner(): Promise<Session | null> {
   try {
     const raw = await AsyncStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -75,7 +75,7 @@ export async function getSession(): Promise<Session | null> {
 export async function requestLoginCode(email: string): Promise<void> {
   const res = await fetch(authUrl('otp'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({ email: email.trim(), create_user: true }),
   });
   if (!res.ok) {
@@ -90,7 +90,7 @@ export async function verifyLoginCode(
 ): Promise<Session> {
   const res = await fetch(authUrl('verify'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({
       type: 'email',
       email: email.trim(),
@@ -310,7 +310,7 @@ export async function signUp(
 ): Promise<{ session: Session | null; needsConfirm: boolean }> {
   const res = await fetch(authUrl('signup'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({
       email: email.trim(),
       password,
@@ -344,7 +344,7 @@ export async function signInWithPassword(
 ): Promise<Session> {
   const res = await fetch(authUrl('token?grant_type=password'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({ email: email.trim(), password }),
   });
   const json = await res.json();
@@ -474,7 +474,7 @@ export async function updateEmail(session: Session, newEmail: string): Promise<v
 export async function requestPasswordReset(email: string): Promise<void> {
   await fetch(authUrl('recover'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({ email: email.trim() }),
   });
 }
@@ -482,7 +482,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 export async function resetPasswordWithCode(email: string, code: string, newPassword: string): Promise<Session> {
   const res = await fetch(authUrl('verify'), {
     method: 'POST',
-    headers: await readHeaders(),
+    headers: baseHeaders,
     body: JSON.stringify({ type: 'recovery', email: email.trim(), token: code.trim() }),
   });
   const json = await res.json();
@@ -580,4 +580,15 @@ export async function fetchMyBlocks(): Promise<{ blocked_email: string | null; b
   } catch (e) {
     return [];
   }
+}
+
+
+let _sessInFlight: Promise<Session | null> | null = null;
+export function getSession(): Promise<Session | null> {
+  if (!_sessInFlight) {
+    _sessInFlight = getSessionInner()
+      .catch(() => null)
+      .finally(() => { _sessInFlight = null; });
+  }
+  return _sessInFlight;
 }
