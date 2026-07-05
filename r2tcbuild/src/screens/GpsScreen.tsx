@@ -13,11 +13,12 @@ import Svg, { Circle, Polyline as SvgPolyline } from 'react-native-svg';
 import { distanceMetres, LatLon, metresToYards } from '../logic/gps';
 import {
   BBox,
-  esriImageUrl,
+  bearingDeg,
+  esriImageUrlMerc,
   fetchHoles,
   HoleGeo,
-  holeBBox,
   nearestHoleIndex,
+  squareBBoxM,
   project,
   unproject,
   fetchGreens,
@@ -41,19 +42,6 @@ const mid = (a: LatLon, b: LatLon): LatLon => ({
   lat: (a.lat + b.lat) / 2,
   lon: (a.lon + b.lon) / 2,
 });
-
-function zoomBBox(b: BBox, z: number): BBox {
-  const cLat = (b.minLat + b.maxLat) / 2;
-  const cLon = (b.minLon + b.maxLon) / 2;
-  const hLat = (b.maxLat - b.minLat) / 2 / z;
-  const hLon = (b.maxLon - b.minLon) / 2 / z;
-  return {
-    minLat: cLat - hLat,
-    maxLat: cLat + hLat,
-    minLon: cLon - hLon,
-    maxLon: cLon + hLon,
-  };
-}
 
 export default function GpsScreen({ round, onBack }: Props) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
@@ -103,11 +91,22 @@ export default function GpsScreen({ round, onBack }: Props) {
   const [layout, setLayout] = useState({ w: win.width, h: win.height });
 
   // Live refs the touch handlers read (avoids stale closures).
-  const geoRef = useRef<{ bbox: BBox | null; w: number; h: number }>({
+  const geoRef = useRef<{
+    bbox: BBox | null;
+    w: number;
+    h: number;
+    S: number;
+    bearing: number;
+  }>({
     bbox: null,
     w: win.width,
     h: win.height,
+    S: 0,
+    bearing: 0,
   });
+  // Camera anchor, frozen so the satellite image is not refetched on every
+  // GPS tick. Re-anchors on hole change or when you move ~30 m.
+  const camRef = useRef<{ idx: number; anchor: LatLon } | null>(null);
   const handlesRef = useRef<{ [k in Handle]: { x: number; y: number } }>({
     s: { x: 0, y: 0 },
     a: { x: 0, y: 0 },
@@ -133,6 +132,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   }, [idx]);
 
   const resetLine = (hole: HoleGeo) => {
+    camRef.current = null;
     setStartPt(hole.tee);
     setAim(mid(hole.tee, hole.green));
     setEndPt(hole.green);
@@ -221,6 +221,18 @@ export default function GpsScreen({ round, onBack }: Props) {
     units === 'm' ? `${Math.round(m)}` : `${Math.round(metresToYards(m))}`;
 
   // ----- touch handlers (drag the start / aim / end handles) -----
+  // The map canvas is a square of side S rotated by -bearing around the
+  // screen centre; convert screen touch points into canvas space first.
+  const screenToCanvas = (sx: number, sy: number) => {
+    const g = geoRef.current;
+    const b = (g.bearing * Math.PI) / 180;
+    const dx = sx - g.w / 2;
+    const dy = sy - g.h / 2;
+    return {
+      x: g.S / 2 + dx * Math.cos(b) - dy * Math.sin(b),
+      y: g.S / 2 + dx * Math.sin(b) + dy * Math.cos(b),
+    };
+  };
   const pickHandle = (x: number, y: number): Handle | null => {
     const H = handlesRef.current;
     const order: [Handle, number][] = [
@@ -248,7 +260,8 @@ export default function GpsScreen({ round, onBack }: Props) {
       return;
     }
     const { locationX: x, locationY: y, pageX, pageY } = e.nativeEvent;
-    const hit = pickHandle(x, y);
+    const c = screenToCanvas(x, y);
+    const hit = pickHandle(c.x, c.y);
     if (hit) {
       dragRef.current = hit;
     } else {
@@ -275,8 +288,9 @@ export default function GpsScreen({ round, onBack }: Props) {
     if (!dragRef.current) return;
     const { locationX: x, locationY: y } = e.nativeEvent;
     const g = geoRef.current;
-    if (!g.bbox) return;
-    const ll = unproject(x, y, g.bbox, g.w, g.h);
+    if (!g.bbox || !g.S) return;
+    const c = screenToCanvas(x, y);
+    const ll = unproject(c.x, c.y, g.bbox, g.S, g.S);
     if (dragRef.current === 's') setStartPt(ll);
     else if (dragRef.current === 'e') setEndPt(ll);
     else setAim(ll);
@@ -288,11 +302,15 @@ export default function GpsScreen({ round, onBack }: Props) {
       pinchRef.current = null;
     } else if (panRef.current) {
       const g = geoRef.current;
-      if (g.bbox && g.w && g.h) {
-        const degLon = (g.bbox.maxLon - g.bbox.minLon) / g.w;
-        const degLat = (g.bbox.maxLat - g.bbox.minLat) / g.h;
-        setPanLon((p) => p - panX * degLon);
-        setPanLat((p) => p + panY * degLat);
+      if (g.bbox && g.S) {
+        // Rotate the screen-space pan vector into canvas (north-up) space.
+        const b = (g.bearing * Math.PI) / 180;
+        const dx = panX * Math.cos(b) - panY * Math.sin(b);
+        const dy = panX * Math.sin(b) + panY * Math.cos(b);
+        const degLon = (g.bbox.maxLon - g.bbox.minLon) / g.S;
+        const degLat = (g.bbox.maxLat - g.bbox.minLat) / g.S;
+        setPanLon((p) => p - dx * degLon);
+        setPanLat((p) => p + dy * degLat);
       }
       panRef.current = null;
     }
@@ -342,16 +360,37 @@ export default function GpsScreen({ round, onBack }: Props) {
 
   const hole = holes[idx];
   const { w, h } = layout;
-  const baseBBox: BBox | null = w > 0 && h > 0 ? holeBBox(hole.path, w / h) : null;
-  const zoomed: BBox | null = baseBBox ? zoomBBox(baseBBox, zoom) : null;
-  const bbox: BBox | null = zoomed
-    ? {
-        minLat: zoomed.minLat + panLat,
-        maxLat: zoomed.maxLat + panLat,
-        minLon: zoomed.minLon + panLon,
-        maxLon: zoomed.maxLon + panLon,
-      }
-    : null;
+
+  // ----- GameBook-style camera: you at the bottom, green straight up -----
+  const liveCandidate =
+    pos &&
+    distanceMetres(pos, hole.green) >= 12 &&
+    distanceMetres(pos, hole.green) <= 900
+      ? pos
+      : null;
+  let cam = camRef.current;
+  if (!cam || cam.idx !== idx) {
+    cam = { idx, anchor: liveCandidate ?? hole.tee };
+    camRef.current = cam;
+  } else if (liveCandidate && distanceMetres(cam.anchor, liveCandidate) > 30) {
+    cam = { idx, anchor: liveCandidate };
+    camRef.current = cam;
+  }
+  const anchor = cam.anchor;
+  const bearing = bearingDeg(anchor, hole.green);
+  const holeDist = Math.max(60, distanceMetres(anchor, hole.green));
+
+  // Square canvas big enough to cover the screen at any rotation.
+  const S = w > 0 && h > 0 ? Math.ceil(Math.hypot(w, h)) : 0;
+  // The anchor-to-green line fills ~58% of the screen height.
+  const viewM = Math.min(1600, Math.max(120, holeDist / 0.58)) / zoom;
+  const mpp = h > 0 ? viewM / h : 0; // ground metres per screen pixel
+  const centre: LatLon = {
+    lat: (anchor.lat + hole.green.lat) / 2 + panLat,
+    lon: (anchor.lon + hole.green.lon) / 2 + panLon,
+  };
+  const bbox: BBox | null =
+    S > 0 && mpp > 0 ? squareBBoxM(centre, mpp * S) : null;
 
   const sp = startPt ?? hole.tee;
   const ap = aim ?? mid(hole.tee, hole.green);
@@ -363,7 +402,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   const greenPoly = (greens && hole && hole.green) ? pickGreenForHole(hole.green, greens) : null;
   const fmb = (greenPoly && pos) ? fmbMetres(pos, greenPoly) : (pos && hole && hole.green) ? fmbFromCenter(pos, hole.green) : null;
 
-  const px = (p: LatLon) => (bbox ? project(p, bbox, w, h) : { x: 0, y: 0 });
+  const px = (p: LatLon) => (bbox ? project(p, bbox, S, S) : { x: 0, y: 0 });
   const spPx = px(sp);
   const apPx = px(ap);
   const epPx = px(ep);
@@ -372,7 +411,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   const mid2 = px(mid(ap, ep));
 
   // keep refs current for touch handlers
-  geoRef.current = { bbox, w, h };
+  geoRef.current = { bbox, w, h, S, bearing };
   handlesRef.current = { s: spPx, a: apPx, e: epPx };
 
   const par =
@@ -410,15 +449,28 @@ export default function GpsScreen({ round, onBack }: Props) {
             onResponderRelease={onRelease}
             onResponderTerminate={onRelease}
           >
+            {/* Rotated canvas: square satellite image + overlays, turned so
+                the anchor-to-green line runs straight up the screen. */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: (w - S) / 2,
+                top: (h - S) / 2,
+                width: S,
+                height: S,
+                transform: [{ rotate: `${-bearing}deg` }],
+              }}
+            >
             <Image
-              key={`${idx}-${Math.round(w)}x${Math.round(h)}`}
-              source={{ uri: esriImageUrl(bbox, w, h) }}
+              key={`${idx}-${S}`}
+              source={{ uri: esriImageUrlMerc(bbox, S, S) }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
               onError={() => setImgError(true)}
               onLoad={() => setImgError(false)}
             />
-            <Svg style={StyleSheet.absoluteFill} width={w} height={h}>
+            <Svg style={StyleSheet.absoluteFill} width={S} height={S}>
               <SvgPolyline
                 points={`${spPx.x},${spPx.y} ${apPx.x},${apPx.y} ${epPx.x},${epPx.y}`}
                 fill="none"
@@ -458,16 +510,31 @@ export default function GpsScreen({ round, onBack }: Props) {
 
             {/* distance bubbles */}
             <View
-              style={[styles.bubble, { left: mid1.x - 26, top: mid1.y - 16 }]}
+              style={[
+                styles.bubble,
+                {
+                  left: mid1.x - 26,
+                  top: mid1.y - 16,
+                  transform: [{ rotate: `${bearing}deg` }],
+                },
+              ]}
               pointerEvents="none"
             >
               <Text style={styles.bubbleText}>{fmt(seg1)}</Text>
             </View>
             <View
-              style={[styles.bubble, { left: mid2.x - 26, top: mid2.y - 16 }]}
+              style={[
+                styles.bubble,
+                {
+                  left: mid2.x - 26,
+                  top: mid2.y - 16,
+                  transform: [{ rotate: `${bearing}deg` }],
+                },
+              ]}
               pointerEvents="none"
             >
               <Text style={styles.bubbleText}>{fmt(seg2)}</Text>
+            </View>
             </View>
           </View>
         ) : null}

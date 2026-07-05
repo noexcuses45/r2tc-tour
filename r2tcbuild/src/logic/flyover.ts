@@ -256,3 +256,49 @@ export function fmbFromCenter(from: LatLon, center: LatLon, depthM: number = 30)
   const half = depthM / 2;
   return { front: Math.max(0, middle - half), middle, back: middle + half };
 }
+
+// --- Rotated (GameBook-style) hole view helpers ---
+
+/** Clockwise bearing in degrees (0 = north) from a to b. */
+export function bearingDeg(a: LatLon, b: LatLon): number {
+  const mLon = Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+  const dx = (b.lon - a.lon) * mLon;
+  const dy = b.lat - a.lat;
+  return (Math.atan2(dx, dy) * 180) / Math.PI;
+}
+
+/** North-up bbox centred on c that spans `metres` ground distance both ways. */
+export function squareBBoxM(c: LatLon, metres: number): BBox {
+  const halfLat = metres / 2 / 111320;
+  const halfLon = metres / 2 / (111320 * Math.cos((c.lat * Math.PI) / 180));
+  return {
+    minLat: c.lat - halfLat,
+    maxLat: c.lat + halfLat,
+    minLon: c.lon - halfLon,
+    maxLon: c.lon + halfLon,
+  };
+}
+
+const MERC_R = 6378137;
+function mercX(lon: number): number {
+  return (MERC_R * lon * Math.PI) / 180;
+}
+function mercY(lat: number): number {
+  return MERC_R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+}
+
+/**
+ * Esri World Imagery export in Web Mercator. Unlike the 4326 export,
+ * mercator keeps ground scale identical in x and y, so the image can be
+ * rotated on screen without distorting distances. Use with a bbox from
+ * squareBBoxM and a square pixel size so the aspect ratios match.
+ */
+export function esriImageUrlMerc(b: BBox, w: number, h: number): string {
+  const size = Math.round(w) + ',' + Math.round(h);
+  return (
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/' +
+    'MapServer/export?bbox=' + mercX(b.minLon) + ',' + mercY(b.minLat) +
+    ',' + mercX(b.maxLon) + ',' + mercY(b.maxLat) +
+    '&bboxSR=102100&imageSR=102100&size=' + size + '&format=jpg&f=image'
+  );
+}
