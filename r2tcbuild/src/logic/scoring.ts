@@ -61,6 +61,10 @@ export function holeResults(player: RoundPlayer, holes: HoleInfo[]): HoleResult[
     if (gross === null) {
       return { gross: null, strokes, net: null, stableford: null };
     }
+    if (gross === 0) {
+      // Wiped hole (stableford pick-up): played, 0 points, no valid stroke score
+      return { gross: 0, strokes, net: null, stableford: 0 };
+    }
     const net = gross - strokes;
     const stableford = Math.max(0, 2 + hole.par - net);
     return { gross, strokes, net, stableford };
@@ -87,7 +91,8 @@ export function playerStanding(player: RoundPlayer, holes: HoleInfo[]): PlayerSt
   let parPlayed = 0;
   let stableford = 0;
   results.forEach((r, i) => {
-    if (r.gross !== null && r.net !== null && r.stableford !== null) {
+    if (r.gross === 0 && r.net === null) { thru += 1; }
+    else if (r.gross !== null && r.net !== null && r.stableford !== null) {
       thru += 1;
       gross += r.gross;
       net += r.net;

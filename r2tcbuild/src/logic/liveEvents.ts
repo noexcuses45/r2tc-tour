@@ -18,7 +18,7 @@ async function authHeaders(): Promise<any> {
 
 export interface LiveEvent { id: string; name: string; course_name: string | null; status: string; config: any; created_at: string; }
 export interface LiveScoreRow { event_id: string; player_name: string; handicap: number; group_no: number; hole_number: number; strokes: number | null; }
-export interface LiveStanding { name: string; groupNo: number; handicap: number; thru: number; strokes: number; toPar: number; net: number; netToPar: number; points: number; holes: Record<number, number>; pts: Record<number, number>; nets: Record<number, number>; }
+export interface LiveStanding { name: string; groupNo: number; handicap: number; thru: number; strokes: number; toPar: number; net: number; netToPar: number; points: number; holes: Record<number, number>; pts: Record<number, number>; nets: Record<number, number>; wiped?: boolean; }
 
 export async function createLiveEvent(name: string, courseName: string, config: any): Promise<LiveEvent | null> {
   const s = await getSession();
@@ -100,8 +100,10 @@ export function buildStandings(rows: LiveScoreRow[], config: any): LiveStanding[
     const phcp = playingHandicap(p.handicap, holes.length || 18);
     const pts: Record<number, number> = {};
     const nets: Record<number, number> = {};
+      let wiped = false;
     holeNos.forEach((hn) => {
       const g = p.holes[hn];
+        if (g === 0) { wiped = true; pts[hn] = 0; nets[hn] = 0; parPlayed += parByHoleNo[hn] || 0; return; }
       strokes += g; parPlayed += parByHoleNo[hn] || 0;
       const info = holes[holeNumbers.indexOf(hn)];
       if (info) {
@@ -111,7 +113,7 @@ export function buildStandings(rows: LiveScoreRow[], config: any): LiveStanding[
         nets[hn] = net; netStrokes += net;
       } else { pts[hn] = 0; nets[hn] = g; netStrokes += g; }
     });
-    return { name, groupNo: p.groupNo, handicap: p.handicap, thru: holeNos.length, strokes, toPar: strokes - parPlayed, net: netStrokes, netToPar: netStrokes - parPlayed, points, holes: p.holes, pts, nets };
+    return { name, groupNo: p.groupNo, handicap: p.handicap, thru: holeNos.length, strokes, toPar: strokes - parPlayed, net: netStrokes, netToPar: netStrokes - parPlayed, points, holes: p.holes, pts, nets, wiped };
   });
   out.sort((a, b) => a.toPar - b.toPar || b.thru - a.thru);
   return out;

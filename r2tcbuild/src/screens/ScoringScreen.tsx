@@ -1,14 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  PanResponder,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Modal, PanResponder, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { scoreLabel, strokesReceived, playingHandicap } from '../logic/scoring';
 import { getEvent, pushContestResult, removeContestResult } from '../logic/liveEvents';
 import { colors, radius } from '../theme';
@@ -297,6 +288,12 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
         >
           <Text style={styles.keyNum}>10</Text>
         </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.key, styles.keyDark]}
+                  onPress={() => { Alert.alert('Wipe hole?', 'No score for this hole - 0 stableford points.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Wipe', style: 'destructive', onPress: () => setScore(0) }]); }}
+                >
+                  <Text style={[styles.keyClear, { color: '#ff6b6b' }]}>Wipe</Text>
+                </TouchableOpacity>
         <TouchableOpacity
           style={[styles.key, styles.keyDark]}
           onPress={openCustom}

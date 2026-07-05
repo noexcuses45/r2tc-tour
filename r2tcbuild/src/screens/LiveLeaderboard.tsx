@@ -202,7 +202,7 @@ function computeTeams(standings, teams, order, parByNo, siByNo, fmt, opts) {
   }
   var stablefordType = (fmt === 'bb_stableford' || fmt === 'tbb_stableford');
   var matchType = ['bb_match', 'scramble_match', 'foursome_match', 'greensome_match'].indexOf(fmt) >= 0;
-  rows.forEach(function (r) { r.disp = matchType ? (r.won || 0) : stablefordType ? r.points : r.net; });
+  rows.forEach(function (r) { r.disp = matchType ? (r.won || 0) : stablefordType ? r.points : ((r as any).wiped ? '-' : r.net); });
   if (matchType || stablefordType) rows.sort(function (a, b) { return (b.disp - a.disp) || b.thru - a.thru; });
   else rows.sort(function (a, b) { return a.toPar - b.toPar || b.thru - a.thru; });
   return rows;
