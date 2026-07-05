@@ -578,19 +578,19 @@ export default function GpsScreen({ round, onBack }: Props) {
               {toGreenLive != null ? fmt(Math.min(999, toGreenLive)) : '—'}
             </Text>
           </View>
-        {fmb && fmb.middle < 1200 ? (
+        {fmb ? (
           <View pointerEvents="none" style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14 }}>
             <View style={{ alignItems: 'center', marginHorizontal: 9 }}>
               <Text style={{ color: '#9CD67D', fontSize: 10, fontWeight: '800' }}>FRONT</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(fmb.front)}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(Math.min(999, fmb.front))}</Text>
             </View>
             <View style={{ alignItems: 'center', marginHorizontal: 9 }}>
               <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>MIDDLE</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(fmb.middle)}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(Math.min(999, fmb.middle))}</Text>
             </View>
             <View style={{ alignItems: 'center', marginHorizontal: 9 }}>
               <Text style={{ color: '#F0A6A6', fontSize: 10, fontWeight: '800' }}>BACK</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(fmb.back)}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>{fmt(Math.min(999, fmb.back))}</Text>
             </View>
           </View>
         ) : null}
