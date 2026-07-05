@@ -380,8 +380,9 @@ export default function GpsScreen({ round, onBack }: Props) {
   // transforms over this one cached image, so gestures never refetch it.
   const S = w > 0 && h > 0 ? Math.ceil(Math.hypot(w, h)) : 0;
   const C = S * 2;
-  // The anchor-to-green line fills ~58% of the screen height.
-  const viewM = Math.min(1600, Math.max(120, holeDist / 0.58));
+  // The anchor-to-green line fills ~50% of the screen height, leaving
+  // GameBook-style context around the hole.
+  const viewM = Math.min(1600, Math.max(120, holeDist / 0.5));
   const mpp = h > 0 ? viewM / h : 0; // ground metres per screen pixel
   const centre: LatLon = {
     lat: (anchor.lat + hole.green.lat) / 2,
@@ -574,10 +575,10 @@ export default function GpsScreen({ round, onBack }: Props) {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>GREEN</Text>
             <Text style={styles.cardValue}>
-              {toGreenLive != null ? fmt(toGreenLive) : '—'}
+              {toGreenLive != null ? fmt(Math.min(999, toGreenLive)) : '—'}
             </Text>
           </View>
-        {fmb ? (
+        {fmb && fmb.middle < 1200 ? (
           <View pointerEvents="none" style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14 }}>
             <View style={{ alignItems: 'center', marginHorizontal: 9 }}>
               <Text style={{ color: '#9CD67D', fontSize: 10, fontWeight: '800' }}>FRONT</Text>
