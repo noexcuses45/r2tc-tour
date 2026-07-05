@@ -37,6 +37,7 @@ import { fetchHandicapForGolfId, fetchHandicapByName, cleanLeaderName } from '..
 import { holeResults } from '../logic/scoring';
 import {
   listOpenEvents,
+  fetchFinishedEvents,
   LiveEvent,
   findMyGroupIndex,
   buildRoundFromEvent,
@@ -344,7 +345,7 @@ export default function HomeScreen({
   useEffect(() => {
     load();
     fetchAllPlayers().then(setAllPlayers);
-    listOpenEvents().then(setLiveEvents);
+    Promise.all([listOpenEvents(), fetchFinishedEvents()]).then(([o, f]) => setLiveEvents([...(o || []), ...(f || [])]));
     fetchPosts().then((ps) => setPosts((ps || []).filter((p) => !(p as any).featured)));
     refreshReactions();
     getSession().then((s) => {
@@ -569,12 +570,23 @@ export default function HomeScreen({
     ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(
       (session.email || '').toLowerCase(),
     );
-  const watchEvents = liveEvents.filter(
-    (ev) => !isAdmin && findMyGroupIndex(ev, meName, profile ? profile.id : undefined) < 0,
-  );
-  const myEvents = liveEvents.filter(
-    (ev) => isAdmin || findMyGroupIndex(ev, meName, profile ? profile.id : undefined) >= 0,
-  ).filter((ev) => { const dd = ev.config && ev.config.date; if (!dd) return true; const end = new Date(); end.setHours(23, 59, 59, 999); return new Date(dd).getTime() <= end.getTime(); }).sort((a, b) => String((a.config && a.config.date) || a.created_at || '').localeCompare(String((b.config && b.config.date) || b.created_at || '')));
+  // Today's rounds: every event dated today (scheduled ahead or created on
+  // the day) - upcoming, in play or finished. Players in a group can open
+  // and score; everyone else watches. Drops off the list at midnight.
+  const isTodayEvent = (ev: LiveEvent) => {
+    const dd = (ev.config && ev.config.date) || ev.created_at;
+    if (!dd) return false;
+    const d = new Date(dd);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+  const todaysEvents = liveEvents
+    .filter(isTodayEvent)
+    .sort((a, b) => String((a.config && a.config.date) || a.created_at || '').localeCompare(String((b.config && b.config.date) || b.created_at || '')));
 
   const pickMedia = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -794,30 +806,10 @@ export default function HomeScreen({
           </TouchableOpacity>
         </View>
 
-        {watchEvents.length > 0 ? (
+        {todaysEvents.length > 0 ? (
           <View style={styles.ongoingWrap}>
-            <Text style={styles.ongoingHeading}>WATCH LIVE</Text>
-            {watchEvents.map((ev) => {
-              const cfg = ev.config || {};
-              const count = (cfg.groups || []).reduce((a: number, g: any) => a + g.length, 0);
-              return (
-                <View key={ev.id} style={styles.ongoingCard}>
-                  <Text style={styles.ongoingTag}>{(cfg.format ? String(cfg.format) : 'game').toUpperCase()}</Text>
-                  <Text style={styles.ongoingName}>{ev.name}</Text>
-                  {ev.course_name ? <Text style={styles.ongoingSub}>{ev.course_name}</Text> : null}
-                  <Text style={styles.ongoingSub}>👥 {count} players</Text>
-                  <TouchableOpacity style={styles.ongoingOpen} onPress={() => onWatchEvent(ev)}>
-                    <Text style={styles.ongoingOpenText}>📺 Watch live</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-        {myEvents.length > 0 ? (
-          <View style={styles.ongoingWrap}>
-            <Text style={styles.ongoingHeading}>ONGOING ROUNDS</Text>
-            {myEvents.map((ev) => {
+            <Text style={styles.ongoingHeading}>TODAY'S ROUNDS</Text>
+            {todaysEvents.map((ev) => {
               const cfg = ev.config || {};
               const count = (cfg.groups || []).reduce(
                 (a, g) => a + g.length,
@@ -827,7 +819,7 @@ export default function HomeScreen({
               return (
                 <View key={ev.id} style={styles.ongoingCard}>
                   <Text style={styles.ongoingTag}>
-                    {(cfg.format ? String(cfg.format) : 'game').toUpperCase()}
+                    {ev.status === 'finished' ? 'FINAL' : (cfg.format ? String(cfg.format) : 'game').toUpperCase()}
                   </Text>
                   <Text style={styles.ongoingName}>{ev.name}</Text>
                   {ev.course_name ? (
@@ -841,6 +833,7 @@ export default function HomeScreen({
                     <TouchableOpacity
                       style={styles.ongoingOpen}
                       onPress={() => {
+                        if (ev.status === 'finished' || (!isAdmin && mine < 0)) { onWatchEvent(ev); return; }
                         const fin = (ev.config && ev.config.finishedGroups) || [];
                         const myGroupEnded = mine >= 0 && fin.indexOf(mine) !== -1;
                         if (myGroupEnded) { onWatchEvent(ev); return; }
@@ -848,7 +841,7 @@ export default function HomeScreen({
                         onOpenEvent(buildRoundFromEvent(ev, mine >= 0 ? mine : 0));
                       }}
                     >
-                      <Text style={styles.ongoingOpenText}>Open</Text>
+                      <Text style={styles.ongoingOpenText}>{ev.status === 'finished' ? 'Final results' : (isAdmin || mine >= 0) ? 'Open' : 'Watch live'}</Text>
                     </TouchableOpacity>
                     {(isAdmin || (cfg.created_by_email && meEmail && cfg.created_by_email.toLowerCase() === meEmail.toLowerCase())) ? (
                       <TouchableOpacity
@@ -862,7 +855,7 @@ export default function HomeScreen({
                               onPress: () =>
                                 deleteLiveEvent(ev.id).then((res) => {
                                   if (res.ok && res.deleted > 0) {
-                                    listOpenEvents().then(setLiveEvents);
+                                    Promise.all([listOpenEvents(), fetchFinishedEvents()]).then(([o, f]) => setLiveEvents([...(o || []), ...(f || [])]));
                                   } else {
                                     Alert.alert(
                                       'Could not delete',
