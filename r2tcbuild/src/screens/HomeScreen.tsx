@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReportMenu from '../components/ReportMenu';
 import { Alert as RNAlert, Linking as RNLinking } from 'react-native';
 import * as ExpoUpdates from 'expo-updates';
+import { Ionicons } from '@expo/vector-icons';
 import { deleteMyAccount as doDeleteAccount, signOut as doSignOut } from '../logic/supabase';
 import {
   Alert,
@@ -82,6 +83,8 @@ interface Props {
   onOpenProfile: () => void;
   onOpenMessages: () => void;
   onOpenReviews: () => void;
+  onOpenRecords: () => void;
+  onOpenEvents: () => void;
   onOpenUpcoming: () => void;
   onOpenGallery: () => void;
   meEmail: string;
@@ -180,6 +183,8 @@ export default function HomeScreen({
   onOpenProfile,
   onOpenMessages,
   onOpenReviews,
+  onOpenRecords,
+  onOpenEvents,
   onOpenUpcoming,
   onOpenGallery,
   meEmail,
@@ -686,11 +691,11 @@ export default function HomeScreen({
             </View>
             <View style={styles.iconCluster}>
               <TouchableOpacity style={styles.bellBtn} onPress={openNotifs}>
-                <Text style={styles.bellIcon}>🔔</Text>
+                <Ionicons name="notifications-outline" size={22} color="#fff" />
                 {posts.some((p) => new Date(p.created_at).getTime() > notifSeen) ? <View style={styles.bellDot} /> : null}
               </TouchableOpacity>
               <TouchableOpacity style={[styles.bellBtn, { marginLeft: 6 }]} onPress={onOpenMessages}>
-                <Text style={[styles.bellIcon, { fontSize: 36 }]}>💬</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
                 {dmUnread > 0 ? <View style={styles.bellDot} /> : null}
               </TouchableOpacity>
             </View>
@@ -803,6 +808,17 @@ export default function HomeScreen({
           <TouchableOpacity style={styles.linkBtn} onPress={onOpenReviews}>
             <Text style={styles.linkEmoji}>⭐</Text>
             <Text style={styles.linkText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Course Reviews</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.linkRow}>
+          <TouchableOpacity style={styles.linkBtn} onPress={onOpenRecords}>
+            <Text style={styles.linkEmoji}>🏅</Text>
+            <Text style={styles.linkText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Course Records</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkBtn} onPress={onOpenEvents}>
+            <Text style={styles.linkEmoji}>✈️</Text>
+            <Text style={styles.linkText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>Events & Trips</Text>
           </TouchableOpacity>
         </View>
 
@@ -1603,9 +1619,9 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
   leftCol: { flexDirection: 'column', alignItems: 'flex-start' },
   iconCluster: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginLeft: 2 },
-  bellBtn: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+  bellBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   bellIcon: { fontSize: 36 },
-  bellDot: { position: 'absolute', top: 8, right: 8, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.red || '#e23b3b' },
+  bellDot: { position: 'absolute', top: 4, right: 4, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.red || '#e23b3b' },
   profileMeta: { marginLeft: 8, maxWidth: 132 },
   viewProfile: { color: '#ffffff', fontSize: 11, fontWeight: '700', marginTop: 2 },
   notifBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-start' },
@@ -2028,20 +2044,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   startBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  linkRow: { flexDirection: 'row', gap: 12, marginBottom: 10 },
+  linkRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   linkBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     backgroundColor: '#ffffff',
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 10,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+    gap: 8,
   },
-  linkEmoji: { fontSize: 20 },
-  linkText: { color: '#143a22', fontWeight: '800', fontSize: 14, flex: 1 },
+  linkEmoji: { fontSize: 15 },
+  linkText: { color: '#143a22', fontWeight: '800', fontSize: 13, flex: 1 },
   resumeBtn: {
     backgroundColor: colors.gold,
     borderRadius: radius.pill,

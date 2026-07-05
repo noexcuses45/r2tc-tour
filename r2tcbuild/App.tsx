@@ -24,6 +24,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import AuthGateScreen from './src/screens/AuthGateScreen';
+import CourseRecordsScreen from './src/screens/CourseRecordsScreen';
 import { ADMIN_EMAILS } from './src/config';
 import {
   loadActiveRound,
@@ -50,7 +51,9 @@ type Screen =
   | 'profile'
   | 'reviews'
   | 'upcoming'
-  | 'gallery';
+  | 'gallery'
+  | 'records'
+  | 'eventsinfo';
 type RoundTab = 'score' | 'gps' | 'leaderboard' | 'scorecard' | 'chat' | 'settings';
 
 function AppMain() {
@@ -389,6 +392,16 @@ function AppMain() {
         title="COURSE REVIEWS"
       />
     );
+  } else if (screen === 'records') {
+    body = <CourseRecordsScreen onBack={() => setScreen('home')} />;
+  } else if (screen === 'eventsinfo') {
+    body = (
+      <ProfileScreen
+        onBack={() => setScreen('home')}
+        url="https://www.r2tctour.com/events"
+        title="EVENTS & TRIPS"
+      />
+    );
   } else if (screen === 'account') {
     body = (
       <AccountScreen
@@ -590,6 +603,8 @@ function AppMain() {
         onOpenProfile={() => setScreen('profile')}
         onOpenMessages={() => { setDmTarget(null); setScreen('messages'); }}
         onOpenReviews={() => setScreen('reviews')}
+        onOpenRecords={() => setScreen('records')}
+        onOpenEvents={() => setScreen('eventsinfo')}
         onOpenEvent={(round) => { getSession().then((s: any) => setMeEmail(s && s.email ? String(s.email) : '')); startRound(round); }}
         onWatchEvent={(ev) => { getSession().then((s: any) => setMeEmail(s && s.email ? String(s.email) : '')); setSpectateRound(buildFullRoundFromEvent(ev)); setSpectateIsSocial(!!((ev as any) && (ev as any).config && (ev as any).config.roundType === 'social')); setScreen('spectate'); }}
         endedEvents={endedEvents}

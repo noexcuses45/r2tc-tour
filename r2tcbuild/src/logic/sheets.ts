@@ -483,3 +483,25 @@ export function cleanLeaderName(s: string): string {
     .trim()
     .toLowerCase();
 }
+
+
+/** Course records from the tour sheet. Tab 'Course Records':
+ *  Course | Record | Player | Year (row 1 is the header). */
+export interface CourseRecordRow {
+  course: string;
+  record: string;
+  player: string;
+  year: string;
+}
+
+export async function fetchCourseRecords(): Promise<CourseRecordRow[]> {
+  const rows = await fetchTabRows('Course Records');
+  return rows
+    .map((r) => ({
+      course: tidy(r[0] || ''),
+      record: tidy(r[1] || ''),
+      player: tidy(r[2] || ''),
+      year: tidy(r[3] || ''),
+    }))
+    .filter((r) => r.course && r.course.toLowerCase() !== 'course');
+}
