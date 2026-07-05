@@ -23,6 +23,7 @@ import TourHistoryScreen from './src/screens/TourHistoryScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import AuthGateScreen from './src/screens/AuthGateScreen';
 import { ADMIN_EMAILS } from './src/config';
 import {
   loadActiveRound,
@@ -671,13 +672,34 @@ const BOOT_IMG = require('./assets/boot.jpg');
 
 export default function App() {
   const [bootVisible, setBootVisible] = useState(true);
+  // Auth gate: locked out until signed in; stays signed in until sign-out.
+  const [authState, setAuthState] = useState<'checking' | 'out' | 'in'>('checking');
   useEffect(() => {
     const t = setTimeout(() => setBootVisible(false), 2500);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => {
+    let alive = true;
+    const check = () => {
+      getSession()
+        .then((s: any) => { if (alive) setAuthState(s && s.email ? 'in' : 'out'); })
+        .catch(() => { if (alive) setAuthState('out'); });
+    };
+    check();
+    const id = setInterval(check, 2500);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
   return (
     <View style={{ flex: 1 }}>
-      <AppMain />
+      {authState === 'in' ? (
+        <AppMain />
+      ) : (
+        <AuthGateScreen
+          bootImage={BOOT_IMG}
+          checking={authState === 'checking'}
+          onSignedIn={() => setAuthState('in')}
+        />
+      )}
       {bootVisible ? (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b3d1f', zIndex: 999 }}>
           <Image source={BOOT_IMG} style={{ flex: 1, width: '100%', height: '100%' }} resizeMode="contain" />
