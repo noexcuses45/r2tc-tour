@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import ReportMenu from '../components/ReportMenu';
-import { fetchMyBlocks, unblockUser } from '../logic/supabase';
+import { blockUser, fetchMyBlocks, reportContent, unblockUser } from '../logic/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Switch } from 'react-native';
 import {
   Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -63,6 +64,24 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
       .catch(() => {});
   };
   useEffect(() => { refreshBlocks(); }, []);
+  const [prefPreviews, setPrefPreviews] = useState(true);
+  const [prefUnreadFirst, setPrefUnreadFirst] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem('r2tc.msgPrefs')
+      .then((v) => {
+        try {
+          const pf = JSON.parse(v || '{}');
+          if (typeof pf.previews === 'boolean') setPrefPreviews(pf.previews);
+          if (typeof pf.unreadFirst === 'boolean') setPrefUnreadFirst(pf.unreadFirst);
+        } catch (e) {}
+      })
+      .catch(() => {});
+  }, []);
+  const savePrefs = (previews: boolean, unreadFirst: boolean) => {
+    setPrefPreviews(previews);
+    setPrefUnreadFirst(unreadFirst);
+    AsyncStorage.setItem('r2tc.msgPrefs', JSON.stringify({ previews, unreadFirst })).catch(() => {});
+  };
   const isBlockedKey = (email?: any, name?: any) =>
     (String(email || '').trim() !== '' && blockedKeys.indexOf(String(email).trim().toLowerCase()) >= 0) ||
     (String(name || '').trim() !== '' && blockedKeys.indexOf(String(name).trim().toLowerCase()) >= 0);
@@ -257,9 +276,12 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
     threads.forEach((t) => { if (!map[t.thread_key]) map[t.thread_key] = { other: { email: '', name: t.title || 'Group chat', group: true, key: t.thread_key, members: t.members || [], created_by: t.created_by }, last: 'New group', time: t.created_at || '', unread: 0 }; });
     return Object.keys(map).map((k) => map[k]).sort((a, b) => (a.time < b.time ? 1 : -1));
   };
-  const inbox = buildInbox().filter(
+  const inboxBase = buildInbox().filter(
     (t: any) => !(t && t.other && !t.other.group && isBlockedKey(t.other.email, t.other.name)),
   );
+  const inbox = prefUnreadFirst
+    ? [...inboxBase].sort((a: any, b: any) => (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0))
+    : inboxBase;
 
   const fmtTime = (iso: string) => {
     try {
@@ -279,7 +301,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
           <Text style={styles.rowName} numberOfLines={1}>{item.other.name}</Text>
           <Text style={styles.rowTime}>{fmtTime(item.time)}</Text>
         </View>
-        <Text style={[styles.rowLast, item.unread > 0 && styles.rowUnread]} numberOfLines={1}>{item.last}</Text>
+        <Text style={[styles.rowLast, item.unread > 0 && styles.rowUnread]} numberOfLines={1}>{prefPreviews ? item.last : 'Tap to view'}</Text>
       </View>
       {item.unread > 0 ? <View style={styles.badge}><Text style={styles.badgeTxt}>{item.unread}</Text></View> : null}
     </TouchableOpacity>
@@ -297,7 +319,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
           {item.text ? <Text style={[styles.bText, mineMsg && { color: '#fff' }]}>{item.text}</Text> : null}
                 {item.created_at ? <Text style={{ fontSize: 10, marginTop: 3, alignSelf: 'flex-end', color: mineMsg ? 'rgba(255,255,255,0.7)' : '#9A9A9A' }}>{new Date(item.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text> : null}
           </TouchableOpacity>
-            {!mineMsg ? (<ReportMenu contentType="dm_message" contentId={String(item.id)} authorName={item.from_name || item.from_email} authorEmail={item.from_email} />) : null}
+            
           {reactions.filter((r) => r.message_id === item.id).length ? (
             <View style={[styles.reactRow, mineMsg ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
               {Array.from(new Set(reactions.filter((r) => r.message_id === item.id).map((r) => r.type))).map((tp) => (
@@ -443,29 +465,45 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
             <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); setMediaOpen(true); }}><Text style={styles.menuTxt}>🖼️  Chat media</Text></TouchableOpacity>
             {og.group ? <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); setAddPicked([]); setNameQuery(''); setAddOpen(true); }}><Text style={styles.menuTxt}>➕  Add players</Text></TouchableOpacity> : null}
             {og.group ? <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); setRenameText(og.name || ''); setRenameOpen(true); }}><Text style={styles.menuTxt}>✏️  Chat name</Text></TouchableOpacity> : null}
+            {!og.group && other ? <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); reportContent({ contentType: 'dm_thread', contentAuthor: (other as any).name || (other as any).email }).catch(() => {}); Alert.alert('Reported', 'Thanks - the conversation has been reported for review.'); }}><Text style={styles.menuTxt}>Report player</Text></TouchableOpacity> : null}
+            {!og.group && other ? <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); Alert.alert('Block ' + (((other as any).name || (other as any).email) || 'player') + '?', 'They will no longer be able to message you. Blocking does not affect scoring or rounds.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Block', style: 'destructive', onPress: () => { blockUser({ email: (other as any).email, name: (other as any).name }).then(() => { refreshBlocks(); setView('inbox'); setOther(null); }).catch(() => {}); } }]); }}><Text style={[styles.menuTxt, { color: '#d33' }]}>Block player</Text></TouchableOpacity> : null}
             {og.group ? <TouchableOpacity style={styles.menuItem} onPress={doLeave}><Text style={[styles.menuTxt, { color: '#d33' }]}>🚪  Leave chat</Text></TouchableOpacity> : null}
             {og.group && String(og.created_by || '').toLowerCase() === me ? <TouchableOpacity style={styles.menuItem} onPress={doDelete}><Text style={[styles.menuTxt, { color: '#d33' }]}>🗑️  Delete chat</Text></TouchableOpacity> : null}
           </View>
         </TouchableOpacity>
       </Modal>
         <Modal visible={settingsOpen} transparent animationType="fade" onRequestClose={() => setSettingsOpen(false)}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setSettingsOpen(false)} style={styles.menuBackdrop}>
-            <View style={styles.menuSheet}>
-              <Text style={styles.sheetTitle}>Message settings</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 12, marginBottom: 4, fontWeight: '800', letterSpacing: 0.6 }}>BLOCKED PLAYERS</Text>
+          <TouchableOpacity activeOpacity={1} onPress={() => setSettingsOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 22 }}>
+            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18 }}>
+              <Text style={{ color: '#111827', fontSize: 17, fontWeight: '900' }}>Message settings</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }}>Show message previews</Text>
+                  <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 1 }}>Show the last message under each chat in the inbox.</Text>
+                </View>
+                <Switch value={prefPreviews} onValueChange={(v) => savePrefs(v, prefUnreadFirst)} trackColor={{ false: '#D1D5DB', true: colors.green }} thumbColor="#fff" />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={{ color: '#111827', fontSize: 14, fontWeight: '700' }}>Unread chats first</Text>
+                  <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 1 }}>Keep chats with unread messages at the top of the inbox.</Text>
+                </View>
+                <Switch value={prefUnreadFirst} onValueChange={(v) => savePrefs(prefPreviews, v)} trackColor={{ false: '#D1D5DB', true: colors.green }} thumbColor="#fff" />
+              </View>
+              <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 18, marginBottom: 4, fontWeight: '800', letterSpacing: 0.6 }}>BLOCKED PLAYERS</Text>
               {blockRows.length === 0 ? (
-                <Text style={{ color: colors.textMuted, fontSize: 13, paddingVertical: 8, lineHeight: 18 }}>Nobody is blocked. Blocking a player stops their messages reaching you - it does not affect scoring or rounds.</Text>
+                <Text style={{ color: '#6B7280', fontSize: 13, paddingVertical: 6, lineHeight: 18 }}>Nobody is blocked. Blocking a player stops their messages reaching you - it does not affect scoring or rounds.</Text>
               ) : (
                 blockRows.map((b: any, i: number) => (
                   <View key={String(b.blocked_email || b.blocked_name || i)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9 }}>
-                    <Text style={{ color: colors.text, fontSize: 14, flex: 1, marginRight: 10 }} numberOfLines={1}>{b.blocked_name || b.blocked_email}</Text>
+                    <Text style={{ color: '#111827', fontSize: 14, flex: 1, marginRight: 10 }} numberOfLines={1}>{b.blocked_name || b.blocked_email}</Text>
                     <TouchableOpacity onPress={() => { unblockUser({ email: b.blocked_email, name: b.blocked_name }).then(refreshBlocks).catch(() => {}); }} hitSlop={hit}>
                       <Text style={{ color: colors.green, fontWeight: '800', fontSize: 13 }}>Unblock</Text>
                     </TouchableOpacity>
                   </View>
                 ))
               )}
-            </View>
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
       <Modal visible={mediaOpen} transparent animationType="slide" onRequestClose={() => setMediaOpen(false)}>
