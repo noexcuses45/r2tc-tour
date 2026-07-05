@@ -592,3 +592,17 @@ export function getSession(): Promise<Session | null> {
   }
   return _sessInFlight;
 }
+
+/** Remove one of the signed-in player's blocks (messaging only). */
+export async function unblockUser(p: { email?: string | null; name?: string | null }): Promise<void> {
+  const sess = await getSession();
+  const token = sess ? (sess as any).access_token : '';
+  let q = 'user_blocks?';
+  if (p.email) q += 'blocked_email=eq.' + encodeURIComponent(String(p.email));
+  else if (p.name) q += 'blocked_name=eq.' + encodeURIComponent(String(p.name));
+  else return;
+  await fetch(restUrl(q), {
+    method: 'DELETE',
+    headers: { ...baseHeaders, Authorization: `Bearer ${token}` },
+  });
+}

@@ -19,7 +19,7 @@ export default function ReportMenu({ contentType, contentId, authorName, authorE
         style: 'destructive',
         onPress: async () => {
           try { await blockUser({ email: authorEmail, name: authorName }); } catch (e) {}
-          Alert.alert('Blocked', (authorName || 'User') + ' has been blocked. Restart the app to hide their content.');
+          Alert.alert('Blocked', (authorName || 'User') + ' has been blocked. You will no longer see messages from them.');
         },
       });
     }

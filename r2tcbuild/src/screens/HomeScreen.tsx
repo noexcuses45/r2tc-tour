@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReportMenu from '../components/ReportMenu';
-import { fetchMyBlocks } from '../logic/supabase';
 import { Alert as RNAlert, Linking as RNLinking } from 'react-native';
 import * as ExpoUpdates from 'expo-updates';
 import { Ionicons } from '@expo/vector-icons';
@@ -218,22 +217,6 @@ export default function HomeScreen({
     if (gid) { fetchHandicapForGolfId(gid).then((h) => { if (typeof h === 'number') setGaHcp(h); else byName(); }); } else { byName(); }
   }, [profile]);
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
-  const [blockedKeys, setBlockedKeys] = useState<string[]>([]);
-  useEffect(() => {
-    fetchMyBlocks()
-      .then((rows) => {
-        const keys: string[] = [];
-        (rows || []).forEach((r) => {
-          if (r.blocked_email) keys.push(String(r.blocked_email).trim().toLowerCase());
-          if (r.blocked_name) keys.push(String(r.blocked_name).trim().toLowerCase());
-        });
-        setBlockedKeys(keys);
-      })
-      .catch(() => {});
-  }, []);
-  const isBlockedKey = (email?: any, name?: any) =>
-    (String(email || '').trim() !== '' && blockedKeys.indexOf(String(email).trim().toLowerCase()) >= 0) ||
-    (String(name || '').trim() !== '' && blockedKeys.indexOf(String(name).trim().toLowerCase()) >= 0);
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [reactions, setReactions] = useState<any[]>([]);
@@ -760,7 +743,7 @@ export default function HomeScreen({
                 {posts.filter((p) => new Date(p.created_at).getTime() > notifCleared).length === 0 ? (
                   <Text style={styles.notifEmpty}>No notifications yet. Tour activity shows up here.</Text>
                 ) : (
-                  posts.filter((p: any) => !isBlockedKey(p.email, p.author)).filter((p) => new Date(p.created_at).getTime() > notifCleared).slice(0, 30).map((p) => (
+                  posts.filter((p) => new Date(p.created_at).getTime() > notifCleared).slice(0, 30).map((p) => (
                     <View key={p.id} style={styles.notifRow}>
                       <Text style={styles.notifAuthor}>{p.author}</Text>
                       <Text style={styles.notifText} numberOfLines={2}>{p.text}</Text>
@@ -1009,7 +992,7 @@ export default function HomeScreen({
           {posts.length === 0 ? (
             <Text style={styles.emptyText}>No posts yet — be the first!</Text>
           ) : (
-            posts.filter((p: any) => !isBlockedKey(p.email, p.author)).map((p) => (
+            posts.map((p) => (
               <View key={p.id} style={styles.feedItem}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={styles.feedAuthor}>{p.author}</Text><ReportMenu contentType="feed_post" contentId={String(p.id)} authorName={p.author} /></View>
                 {p.text ? <Text style={styles.feedBody}>{p.text}</Text> : null}

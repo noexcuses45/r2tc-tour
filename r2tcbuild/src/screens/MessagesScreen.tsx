@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReportMenu from '../components/ReportMenu';
-import { fetchMyBlocks } from '../logic/supabase';
+import { fetchMyBlocks, unblockUser } from '../logic/supabase';
 import {
   Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -47,9 +47,12 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
   const [inboxQuery, setInboxQuery] = useState('');
   const [threads, setThreads] = useState<any[]>([]);
   const [blockedKeys, setBlockedKeys] = useState<string[]>([]);
-  useEffect(() => {
+  const [blockRows, setBlockRows] = useState<any[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const refreshBlocks = () => {
     fetchMyBlocks()
       .then((rows) => {
+        setBlockRows(rows || []);
         const keys: string[] = [];
         (rows || []).forEach((r) => {
           if (r.blocked_email) keys.push(String(r.blocked_email).trim().toLowerCase());
@@ -58,7 +61,8 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
         setBlockedKeys(keys);
       })
       .catch(() => {});
-  }, []);
+  };
+  useEffect(() => { refreshBlocks(); }, []);
   const isBlockedKey = (email?: any, name?: any) =>
     (String(email || '').trim() !== '' && blockedKeys.indexOf(String(email).trim().toLowerCase()) >= 0) ||
     (String(name || '').trim() !== '' && blockedKeys.indexOf(String(name).trim().toLowerCase()) >= 0);
@@ -316,7 +320,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
         )}
         <Text style={styles.title} numberOfLines={1}>{view === 'thread' && other ? other.name : 'CHAT'}</Text>
         {view === 'inbox' ? (
-          <TouchableOpacity onPress={() => { setNameQuery(''); setShowNew(true); }} hitSlop={hit}><Text style={styles.newBtn}>＋ New</Text></TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}><TouchableOpacity onPress={() => { refreshBlocks(); setSettingsOpen(true); }} hitSlop={hit} style={{ marginRight: 16 }}><Text style={styles.newBtn}>⚙️</Text></TouchableOpacity><TouchableOpacity onPress={() => { setNameQuery(''); setShowNew(true); }} hitSlop={hit}><Text style={styles.newBtn}>＋ New</Text></TouchableOpacity></View>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity onPress={() => setSearchOpen((s) => !s)} hitSlop={hit} style={{ marginRight: 16 }}><Text style={[styles.newBtn, { fontSize: 20 }]}>🔍</Text></TouchableOpacity>
@@ -444,6 +448,26 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
           </View>
         </TouchableOpacity>
       </Modal>
+        <Modal visible={settingsOpen} transparent animationType="fade" onRequestClose={() => setSettingsOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setSettingsOpen(false)} style={styles.menuBackdrop}>
+            <View style={styles.menuSheet}>
+              <Text style={styles.sheetTitle}>Message settings</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 12, marginBottom: 4, fontWeight: '800', letterSpacing: 0.6 }}>BLOCKED PLAYERS</Text>
+              {blockRows.length === 0 ? (
+                <Text style={{ color: colors.textMuted, fontSize: 13, paddingVertical: 8, lineHeight: 18 }}>Nobody is blocked. Blocking a player stops their messages reaching you - it does not affect scoring or rounds.</Text>
+              ) : (
+                blockRows.map((b: any, i: number) => (
+                  <View key={String(b.blocked_email || b.blocked_name || i)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9 }}>
+                    <Text style={{ color: colors.text, fontSize: 14, flex: 1, marginRight: 10 }} numberOfLines={1}>{b.blocked_name || b.blocked_email}</Text>
+                    <TouchableOpacity onPress={() => { unblockUser({ email: b.blocked_email, name: b.blocked_name }).then(refreshBlocks).catch(() => {}); }} hitSlop={hit}>
+                      <Text style={{ color: colors.green, fontWeight: '800', fontSize: 13 }}>Unblock</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       <Modal visible={mediaOpen} transparent animationType="slide" onRequestClose={() => setMediaOpen(false)}>
         <View style={styles.modalWrap}><View style={styles.sheet}>
           <View style={styles.sheetHead}><Text style={styles.sheetTitle}>Chat media</Text><TouchableOpacity onPress={() => setMediaOpen(false)} hitSlop={hit}><Text style={styles.close}>✕</Text></TouchableOpacity></View>
