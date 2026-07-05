@@ -169,12 +169,16 @@ export function unproject(
   };
 }
 
-/** Index of the hole whose green is nearest the player. */
+/** Index of the hole the player is standing on (nearest hole line). */
 export function nearestHoleIndex(from: LatLon, holes: HoleGeo[]): number {
   let best = 0;
   let bestD = Infinity;
   holes.forEach((hole, i) => {
-    const d = distanceMetres(from, hole.green);
+    let d = distanceMetres(from, hole.green);
+    for (let k = 1; k < hole.path.length; k++) {
+      const ds = distToSegM(from, hole.path[k - 1], hole.path[k]);
+      if (ds < d) d = ds;
+    }
     if (d < bestD) {
       bestD = d;
       best = i;

@@ -97,12 +97,18 @@ export default function GpsScreen({ round, onBack }: Props) {
     h: number;
     S: number;
     bearing: number;
+    panTx: number;
+    panTy: number;
+    scale: number;
   }>({
     bbox: null,
     w: win.width,
     h: win.height,
     S: 0,
     bearing: 0,
+    panTx: 0,
+    panTy: 0,
+    scale: 1,
   });
   // Camera anchor, frozen so the satellite image is not refetched on every
   // GPS tick. Re-anchors on hole change or when you move ~30 m.
@@ -116,8 +122,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   const [zoom, setZoom] = useState(1);
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = useRef<{ dist: number } | null>(null);
-  const [panLat, setPanLat] = useState(0);
-  const [panLon, setPanLon] = useState(0);
+  const [basePan, setBasePan] = useState({ x: 0, y: 0 });
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const panRef = useRef<{ x: number; y: number } | null>(null);
@@ -125,8 +130,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   useEffect(() => {
     setZoom(1);
     setPinchScale(1);
-    setPanLat(0);
-    setPanLon(0);
+    setBasePan({ x: 0, y: 0 });
     setPanX(0);
     setPanY(0);
   }, [idx]);
@@ -226,8 +230,9 @@ export default function GpsScreen({ round, onBack }: Props) {
   const screenToCanvas = (sx: number, sy: number) => {
     const g = geoRef.current;
     const b = (g.bearing * Math.PI) / 180;
-    const dx = sx - g.w / 2;
-    const dy = sy - g.h / 2;
+    const k = g.scale || 1;
+    const dx = (sx - g.panTx - g.w / 2) / k;
+    const dy = (sy - g.panTy - g.h / 2) / k;
     return {
       x: g.S / 2 + dx * Math.cos(b) - dy * Math.sin(b),
       y: g.S / 2 + dx * Math.sin(b) + dy * Math.cos(b),
@@ -241,7 +246,7 @@ export default function GpsScreen({ round, onBack }: Props) {
       ['e', Math.hypot(H.e.x - x, H.e.y - y)],
     ];
     order.sort((m, n) => m[1] - n[1]);
-    return order[0][1] < 44 ? order[0][0] : null;
+    return order[0][1] < 44 / (geoRef.current.scale || 1) ? order[0][0] : null;
   };
 
   const touchDist = (touches: any[]) => {
@@ -298,20 +303,11 @@ export default function GpsScreen({ round, onBack }: Props) {
   const onRelease = () => {
     dragRef.current = null;
     if (pinchRef.current) {
-      setZoom((z) => Math.max(0.4, Math.min(4, z * pinchScale)));
+      setZoom((z) => Math.max(0.55, Math.min(4, z * pinchScale)));
       pinchRef.current = null;
     } else if (panRef.current) {
-      const g = geoRef.current;
-      if (g.bbox && g.S) {
-        // Rotate the screen-space pan vector into canvas (north-up) space.
-        const b = (g.bearing * Math.PI) / 180;
-        const dx = panX * Math.cos(b) - panY * Math.sin(b);
-        const dy = panX * Math.sin(b) + panY * Math.cos(b);
-        const degLon = (g.bbox.maxLon - g.bbox.minLon) / g.S;
-        const degLat = (g.bbox.maxLat - g.bbox.minLat) / g.S;
-        setPanLon((p) => p - dx * degLon);
-        setPanLat((p) => p + dy * degLat);
-      }
+      // Pan is a pure screen-space transform - no image refetch.
+      setBasePan((b) => ({ x: b.x + panX, y: b.y + panY }));
       panRef.current = null;
     }
     setPinchScale(1);
@@ -380,17 +376,19 @@ export default function GpsScreen({ round, onBack }: Props) {
   const bearing = bearingDeg(anchor, hole.green);
   const holeDist = Math.max(60, distanceMetres(anchor, hole.green));
 
-  // Square canvas big enough to cover the screen at any rotation.
+  // Square canvas TWICE the screen diagonal: pan/zoom are pure screen
+  // transforms over this one cached image, so gestures never refetch it.
   const S = w > 0 && h > 0 ? Math.ceil(Math.hypot(w, h)) : 0;
+  const C = S * 2;
   // The anchor-to-green line fills ~58% of the screen height.
-  const viewM = Math.min(1600, Math.max(120, holeDist / 0.58)) / zoom;
+  const viewM = Math.min(1600, Math.max(120, holeDist / 0.58));
   const mpp = h > 0 ? viewM / h : 0; // ground metres per screen pixel
   const centre: LatLon = {
-    lat: (anchor.lat + hole.green.lat) / 2 + panLat,
-    lon: (anchor.lon + hole.green.lon) / 2 + panLon,
+    lat: (anchor.lat + hole.green.lat) / 2,
+    lon: (anchor.lon + hole.green.lon) / 2,
   };
   const bbox: BBox | null =
-    S > 0 && mpp > 0 ? squareBBoxM(centre, mpp * S) : null;
+    C > 0 && mpp > 0 ? squareBBoxM(centre, mpp * C) : null;
 
   const sp = startPt ?? hole.tee;
   const ap = aim ?? mid(hole.tee, hole.green);
@@ -402,7 +400,7 @@ export default function GpsScreen({ round, onBack }: Props) {
   const greenPoly = (greens && hole && hole.green) ? pickGreenForHole(hole.green, greens) : null;
   const fmb = (greenPoly && pos) ? fmbMetres(pos, greenPoly) : (pos && hole && hole.green) ? fmbFromCenter(pos, hole.green) : null;
 
-  const px = (p: LatLon) => (bbox ? project(p, bbox, S, S) : { x: 0, y: 0 });
+  const px = (p: LatLon) => (bbox ? project(p, bbox, C, C) : { x: 0, y: 0 });
   const spPx = px(sp);
   const apPx = px(ap);
   const epPx = px(ep);
@@ -411,7 +409,16 @@ export default function GpsScreen({ round, onBack }: Props) {
   const mid2 = px(mid(ap, ep));
 
   // keep refs current for touch handlers
-  geoRef.current = { bbox, w, h, S, bearing };
+  geoRef.current = {
+    bbox,
+    w,
+    h,
+    S: C,
+    bearing,
+    panTx: basePan.x + panX,
+    panTy: basePan.y + panY,
+    scale: zoom * pinchScale,
+  };
   handlesRef.current = { s: spPx, a: apPx, e: epPx };
 
   const par =
@@ -436,9 +443,9 @@ export default function GpsScreen({ round, onBack }: Props) {
               StyleSheet.absoluteFill,
               {
                 transform: [
-                  { translateX: panX },
-                  { translateY: panY },
-                  { scale: pinchScale },
+                  { translateX: basePan.x + panX },
+                  { translateY: basePan.y + panY },
+                  { scale: zoom * pinchScale },
                 ],
               },
             ]}
@@ -455,22 +462,22 @@ export default function GpsScreen({ round, onBack }: Props) {
               pointerEvents="none"
               style={{
                 position: 'absolute',
-                left: (w - S) / 2,
-                top: (h - S) / 2,
-                width: S,
-                height: S,
+                left: (w - C) / 2,
+                top: (h - C) / 2,
+                width: C,
+                height: C,
                 transform: [{ rotate: `${-bearing}deg` }],
               }}
             >
             <Image
-              key={`${idx}-${S}`}
-              source={{ uri: esriImageUrlMerc(bbox, S, S) }}
+              key={`${idx}-${C}`}
+              source={{ uri: esriImageUrlMerc(bbox, C, C) }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
               onError={() => setImgError(true)}
               onLoad={() => setImgError(false)}
             />
-            <Svg style={StyleSheet.absoluteFill} width={S} height={S}>
+            <Svg style={StyleSheet.absoluteFill} width={C} height={C}>
               <SvgPolyline
                 points={`${spPx.x},${spPx.y} ${apPx.x},${apPx.y} ${epPx.x},${epPx.y}`}
                 fill="none"
