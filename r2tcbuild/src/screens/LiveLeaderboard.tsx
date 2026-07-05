@@ -365,7 +365,7 @@ export default function LiveLeaderboard({ round }: { round: Round }) {
                     <Text style={styles.detail}>{s._pair ? ((s.teamHcp != null ? 'Team HCP ' + s.teamHcp : 'Team') + ' · Group ' + s.groupNo) : ('HCP ' + s.handicap + ' · Group ' + s.groupNo)}</Text>
                   </TouchableOpacity>
                   <Text style={styles.colScore}>{scoreCell(s)}</Text>
-                  <Text style={styles.colToPar}>{fmtPar(mode === 'erado' && fmtData ? fmtData.toPar[s.name] : s.netToPar)}</Text>
+                  <Text style={styles.colToPar}>{fmtPar(mode === 'erado' && fmtData ? fmtData.toPar[s.name] : ((mode === 'stableford' || mode === 'duplicate' || (mode as any) === 'bb_stableford' || (mode as any) === 'tbb_stableford') ? (2 * (s.thru || 0) - (s.points || 0)) : s.netToPar))}</Text>
                   <View style={styles.thruCol}>
                     <Text style={styles.thruVal}>{s.thru >= displayNos.length ? 'F' : (s.thru ? s.thru : '–')}</Text>
                   </View>
