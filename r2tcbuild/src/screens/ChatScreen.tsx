@@ -1,4 +1,5 @@
 import ReportMenu from '../components/ReportMenu';
+import { fetchMyBlocks } from '../logic/supabase';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,6 +11,23 @@ import { Round } from '../types';
 
 export default function ChatScreen({ round }: { round: Round }) {
   const [messages, setMessages] = useState<LiveMessage[]>([]);
+  const [blockedKeys, setBlockedKeys] = useState<string[]>([]);
+  useEffect(() => {
+    fetchMyBlocks()
+      .then((rows) => {
+        const keys: string[] = [];
+        (rows || []).forEach((r) => {
+          if (r.blocked_email) keys.push(String(r.blocked_email).trim().toLowerCase());
+          if (r.blocked_name) keys.push(String(r.blocked_name).trim().toLowerCase());
+        });
+        setBlockedKeys(keys);
+      })
+      .catch(() => {});
+  }, []);
+  const isBlockedKey = (email?: any, name?: any) =>
+    (String(email || '').trim() !== '' && blockedKeys.indexOf(String(email).trim().toLowerCase()) >= 0) ||
+    (String(name || '').trim() !== '' && blockedKeys.indexOf(String(name).trim().toLowerCase()) >= 0);
+
   const [text, setText] = useState('');
   const [me, setMe] = useState('');
   const [loading, setLoading] = useState(true);
@@ -104,10 +122,10 @@ export default function ChatScreen({ round }: { round: Round }) {
           contentContainerStyle={styles.body}
           onContentSizeChange={() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true })}
         >
-          {messages.length === 0 ? (
+          {messages.filter((m: any) => !isBlockedKey(m.author_email, m.author)).length === 0 ? (
             <Text style={styles.empty}>No messages yet. Say hello 👋</Text>
           ) : (
-            messages.map((m) => {
+            messages.filter((m: any) => !isBlockedKey(m.author_email, m.author)).map((m) => {
               const mine = m.author === me;
               return (
                 <View key={m.id} style={[styles.row, mine ? styles.rowMine : null]}>

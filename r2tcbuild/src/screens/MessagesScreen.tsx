@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReportMenu from '../components/ReportMenu';
+import { fetchMyBlocks } from '../logic/supabase';
 import {
   Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -45,6 +46,23 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
   const [reactionFor, setReactionFor] = useState<string | null>(null);
   const [inboxQuery, setInboxQuery] = useState('');
   const [threads, setThreads] = useState<any[]>([]);
+  const [blockedKeys, setBlockedKeys] = useState<string[]>([]);
+  useEffect(() => {
+    fetchMyBlocks()
+      .then((rows) => {
+        const keys: string[] = [];
+        (rows || []).forEach((r) => {
+          if (r.blocked_email) keys.push(String(r.blocked_email).trim().toLowerCase());
+          if (r.blocked_name) keys.push(String(r.blocked_name).trim().toLowerCase());
+        });
+        setBlockedKeys(keys);
+      })
+      .catch(() => {});
+  }, []);
+  const isBlockedKey = (email?: any, name?: any) =>
+    (String(email || '').trim() !== '' && blockedKeys.indexOf(String(email).trim().toLowerCase()) >= 0) ||
+    (String(name || '').trim() !== '' && blockedKeys.indexOf(String(name).trim().toLowerCase()) >= 0);
+
   const [picked, setPicked] = useState<any[]>([]);
   const [groupMode, setGroupMode] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -95,7 +113,7 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
   const og: any = other || {};
   const activeThreadKey = other ? (og.group ? og.key : dmThreadKey(me, other.email)) : '';
   const threadMsgsAll = other
-    ? msgs.filter((m) => (m.thread_key || dmThreadKey(m.from_email, m.to_email)) === activeThreadKey)
+    ? msgs.filter((m) => (m.thread_key || dmThreadKey(m.from_email, m.to_email)) === activeThreadKey).filter((m: any) => !isBlockedKey(m.from_email, m.from_name))
           .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
     : [];
   const threadMsgs = threadSearch.trim()
@@ -235,7 +253,9 @@ export default function MessagesScreen({ onBack, meEmail, initialThread, onClear
     threads.forEach((t) => { if (!map[t.thread_key]) map[t.thread_key] = { other: { email: '', name: t.title || 'Group chat', group: true, key: t.thread_key, members: t.members || [], created_by: t.created_by }, last: 'New group', time: t.created_at || '', unread: 0 }; });
     return Object.keys(map).map((k) => map[k]).sort((a, b) => (a.time < b.time ? 1 : -1));
   };
-  const inbox = buildInbox();
+  const inbox = buildInbox().filter(
+    (t: any) => !(t && t.other && !t.other.group && isBlockedKey(t.other.email, t.other.name)),
+  );
 
   const fmtTime = (iso: string) => {
     try {

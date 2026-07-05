@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -162,6 +163,12 @@ export default function AuthGateScreen({ bootImage, checking, onSignedIn }: Prop
                 </TouchableOpacity>
               )}
               {msg ? <Text style={styles.msg}>{msg}</Text> : null}
+              <Text style={styles.legal}>
+                By continuing you agree to our{' '}
+                <Text style={styles.legalLink} onPress={() => Linking.openURL('https://www.r2tctour.com/terms')}>Terms of Use</Text>
+                {' '}and{' '}
+                <Text style={styles.legalLink} onPress={() => Linking.openURL('https://www.r2tctour.com/privacy')}>Privacy Policy</Text>.
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -188,4 +195,6 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: colors.green, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center', marginTop: 14 },
   primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   msg: { color: '#B91C1C', fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 12, lineHeight: 18 },
+  legal: { color: '#6B7280', fontSize: 11, textAlign: 'center', marginTop: 14, lineHeight: 16 },
+  legalLink: { color: colors.green, fontWeight: '800' },
 });
