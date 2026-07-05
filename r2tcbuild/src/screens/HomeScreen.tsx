@@ -1116,7 +1116,7 @@ export default function HomeScreen({
               autoCorrect={false}
               keyboardType="email-address"
               value={emailText}
-              onChangeText={setEmailText}
+              onChangeText={(t) => setEmailText(t.replace(/\s+/g, '').toLowerCase())}
             />
             <TextInput
               style={styles.authInput}
@@ -1279,7 +1279,7 @@ export default function HomeScreen({
                     <TouchableOpacity style={styles.glSave} onPress={saveGolfId} disabled={glSaving}><Text style={styles.glSaveTxt}>{glSaving ? 'Saving…' : 'Save Golf Link & refresh handicap'}</Text></TouchableOpacity>
                     {myGaHcp != null ? <Text style={styles.glMsg}>Current GA handicap: {myGaHcp}</Text> : null}
                     <Text style={[styles.glLabel, styles.glLabelGap]}>EMAIL</Text>
-                    <TextInput style={styles.glInput} placeholder="you@email.com" placeholderTextColor={colors.textMuted} autoCapitalize="none" keyboardType="email-address" value={myEmail} onChangeText={setMyEmail} />
+                    <TextInput style={styles.glInput} placeholder="you@email.com" placeholderTextColor={colors.textMuted} autoCapitalize="none" keyboardType="email-address" value={myEmail} onChangeText={(t) => setMyEmail(t.replace(/\s+/g, '').toLowerCase())} />
                     <TouchableOpacity style={[styles.glSave, styles.glSaveAlt]} onPress={saveEmail} disabled={glSaving}><Text style={[styles.glSaveTxt, styles.glSaveAltTxt]}>Update email</Text></TouchableOpacity>
                     <Text style={[styles.glLabel, styles.glLabelGap]}>NEW PASSWORD</Text>
                     <TextInput style={styles.glInput} placeholder="At least 6 characters" placeholderTextColor={colors.textMuted} secureTextEntry value={myNewPass} onChangeText={setMyNewPass} />
