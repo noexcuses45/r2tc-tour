@@ -116,6 +116,7 @@ function AppMain() {
   }, [activeRound, roundTab]);
   const onDeleteRound = (r: any) => { Alert.alert('Delete event', 'Permanently delete "' + (r.name || 'this event') + '" and its scores? This cannot be undone.', [ { text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => { try { if (r.liveEventId) await deleteLiveEvent(r.liveEventId); setRounds((prev: any) => { const _n = (prev || []).filter((x: any) => x.id !== r.id); saveRounds(_n); return _n; }); try { await deleteRemoteRound(r); } catch (e8) {}; } catch (e) {} } } ]); };
   const [historyRound, setHistoryRound] = useState<Round | null>(null);
+  const [historyFrom, setHistoryFrom] = useState<Screen>('pastrounds');
   const [historyTab, setHistoryTab] = useState<'leaderboard' | 'scorecard' | 'settings'>(
     'leaderboard',
   );
@@ -449,7 +450,7 @@ function AppMain() {
           isAdmin={!!meEmail && ADMIN_EMAILS.map((e: string) => e.toLowerCase()).includes(meEmail.toLowerCase())}
           onDelete={onDeleteRound}
         onBack={() => setScreen('home')}
-        onView={(r) => {
+        onView={(r) => { setHistoryFrom('pastrounds');
           setHistoryRound(r);
           setHistoryTab('leaderboard');
           setScreen('history');
@@ -461,6 +462,9 @@ function AppMain() {
   } else if (screen === 'history' && historyRound) {
     body = (
       <View style={{ flex: 1 }}>
+        <TouchableOpacity onPress={() => setScreen(historyFrom)} style={styles.backFab} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <Text style={styles.backFabText}>‹ Back</Text>
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           {historyTab === 'scorecard' ? (
             <ScorecardScreen round={historyRound} />
@@ -603,7 +607,7 @@ function AppMain() {
           setRoundTab('score');
           setScreen('round');
         }}
-        onViewRound={(r) => {
+        onViewRound={(r) => { setHistoryFrom('home');
           setHistoryRound(r);
           setHistoryTab('leaderboard');
           setScreen('history');
@@ -689,6 +693,8 @@ const styles = StyleSheet.create({
   tabLabel: { color: '#8FA096', fontSize: 12, fontWeight: '700', letterSpacing: 0.2, textAlign: 'center' },
   tabLabelActive: { color: colors.green },
   tabBadge: { position: 'absolute', top: 2, right: '30%', width: 9, height: 9, borderRadius: 5, backgroundColor: '#E5484D' },
+  backFab: { position: 'absolute', top: 46, left: 10, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12 },
+  backFabText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   tabDot: {
     width: 4,
     height: 4,

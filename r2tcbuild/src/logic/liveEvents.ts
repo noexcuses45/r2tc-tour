@@ -871,3 +871,20 @@ export async function renamePlayer(eventId: string, oldName: string, newName: st
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 }
+
+
+/** Admin: change the display name of an event (course name is left unchanged). */
+export async function renameEventName(eventId: string, newName: string): Promise<{ ok: boolean; error?: string }> {
+  const nn = (newName || '').trim();
+  if (!eventId || !nn) return { ok: false, error: 'Enter a name.' };
+  try {
+    const res = await fetch(rest('live_events?id=eq.' + eventId), {
+      method: 'PATCH',
+      headers: { ...(await authHeaders()), Prefer: 'return=representation' },
+      body: JSON.stringify({ name: nn }),
+    });
+    return { ok: res.ok, error: res.ok ? undefined : ('Could not update (status ' + res.status + ').') };
+  } catch (e: any) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+}

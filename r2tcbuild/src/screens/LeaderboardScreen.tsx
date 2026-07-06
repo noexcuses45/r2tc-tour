@@ -23,7 +23,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
-import { renamePlayer } from '../logic/liveEvents';
+import { renamePlayer, renameEventName } from '../logic/liveEvents';
 import { scrambleStandings, teamBallStandings, teamMatchesForRound, teamMatchState, eradoStandings, duplicateStandings } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
@@ -82,6 +82,8 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [evtOpen, setEvtOpen] = useState(false);
+  const [evtName, setEvtName] = useState('');
 
   const hasContests =
     (round.contests?.longestDrive.length ?? 0) +
@@ -127,7 +129,7 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.roundName}>{round.name}</Text>
+        {isAdmin ? (<TouchableOpacity onPress={() => { setEvtName(round.name); setEvtOpen(true); }}><Text style={styles.roundName}>{round.name}  ✎</Text></TouchableOpacity>) : (<Text style={styles.roundName}>{round.name}</Text>)}
         <Text style={styles.courseName}>{round.courseName}</Text>
       </View>
       <View style={styles.tabs}>
@@ -247,7 +249,7 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
                   <View style={styles.row}>
                     <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{r.player.name}</Text>
+                      {isAdmin ? (<TouchableOpacity onPress={() => { setDraft(r.player.name); setRenaming(r.player.name); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}><Text style={styles.name}>{r.player.name}  ✎</Text></TouchableOpacity>) : (<Text style={styles.name}>{r.player.name}</Text>)}
                       <Text style={styles.hcp}>
                         {r.holesWon.length > 0
                           ? `Won holes ${r.holesWon.join(', ')}`
@@ -375,7 +377,7 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
               <View style={styles.row}>
                 <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name} onPress={isAdmin ? () => { setDraft(s.player.name); setRenaming(s.player.name); } : undefined}>{s.player.name}{isAdmin ? '  ✎' : ''}</Text>
+                  {isAdmin ? (<TouchableOpacity onPress={() => { setDraft(s.player.name); setRenaming(s.player.name); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}><Text style={styles.name}>{s.player.name}  ✎</Text></TouchableOpacity>) : (<Text style={styles.name}>{s.player.name}</Text>)}
                   <Text style={styles.hcp}>{s.erased.length ? 'Erased ' + s.erased.join(', ') : 'PHCP ' + s.playingHcp}</Text>
                 </View>
                 <Text style={[styles.value, styles.colRight]}>{s.thru > 0 ? s.net : '–'}</Text>
@@ -394,7 +396,7 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
               <View style={styles.row}>
                 <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{s.player.name}</Text>
+                  {isAdmin ? (<TouchableOpacity onPress={() => { setDraft(s.player.name); setRenaming(s.player.name); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}><Text style={styles.name}>{s.player.name}  ✎</Text></TouchableOpacity>) : (<Text style={styles.name}>{s.player.name}</Text>)}
                   <Text style={styles.hcp}>PHCP {s.playingHcp}</Text>
                 </View>
                 <Text style={[styles.value, styles.colRight]}>{s.points}</Text>
@@ -472,7 +474,7 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
                 >
                   <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{s.player.name}</Text>
+                    {isAdmin ? (<TouchableOpacity onPress={() => { setDraft(s.player.name); setRenaming(s.player.name); }} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}><Text style={styles.name}>{s.player.name}  ✎</Text></TouchableOpacity>) : (<Text style={styles.name}>{s.player.name}</Text>)}
                     <Text style={styles.hcp}>
                       HCP {s.player.handicap} · PHCP {s.playingHcp}
                     </Text>
@@ -494,6 +496,30 @@ export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) 
           <View style={{ height: 30 }} />
         </ScrollView>
       )}
+      <Modal visible={evtOpen} transparent animationType="fade" onRequestClose={() => setEvtOpen(false)}>
+        <View style={styles.mBackdrop}>
+          <View style={styles.mCard}>
+            <Text style={styles.mTitle}>Edit event name</Text>
+            <TextInput style={styles.mInput} value={evtName} onChangeText={setEvtName} autoFocus placeholder="Event name" placeholderTextColor="#9AA59E" />
+            <View style={styles.mRow}>
+              <TouchableOpacity style={styles.mBtn} onPress={() => setEvtOpen(false)}>
+                <Text style={styles.mBtnTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mBtn, styles.mBtnPrimary]} onPress={async () => {
+                const nn = evtName.trim(); setEvtOpen(false);
+                if (!nn || nn === round.name) return;
+                const eid = (round as any).liveEventId;
+                if (!eid) { Alert.alert('Cannot rename', 'This round is not linked to an event.'); return; }
+                const res = await renameEventName(eid, nn);
+                if (res && res.ok) { if (onRefresh) onRefresh(); }
+                else { Alert.alert('Rename failed', (res && res.error) || 'Please try again.'); }
+              }}>
+                <Text style={[styles.mBtnTxt, { color: '#fff' }]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
         <View style={styles.mBackdrop}>
           <View style={styles.mCard}>
