@@ -92,7 +92,7 @@ export default function LeaderboardScreen({ round }: Props) {
 
   const tabs: [Tab, string][] = [
     ...(specialTab ? [specialTab] : []),
-    ...(round.primaryFormat === 'stableford'
+    ...((round.primaryFormat === 'scramble_stroke' || round.primaryFormat === 'tscramble_stroke') ? ([] as [Tab, string][]) : round.primaryFormat === 'stableford'
       ? ([['stableford', 'Stableford'], ['stroke', specialTab ? 'Stroke' : 'Stroke Play NET']] as [Tab, string][])
       : ([['stroke', specialTab ? 'Stroke' : 'Stroke Play NET'], ['stableford', 'Stableford']] as [Tab, string][])),
     ...(hasContests ? ([['contests', 'Contests']] as [Tab, string][]) : []),
