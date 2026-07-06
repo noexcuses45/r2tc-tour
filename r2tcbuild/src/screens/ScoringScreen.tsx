@@ -58,7 +58,7 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
             .filter((mem) => mem.length > 0)
             .map((mem) => ({
               key: mem.map((p) => p.id).join('+'),
-              label: mem.map((p) => p.name.split(' ')[0]).join(' & '),
+              label: mem.map((p) => p.name.trim().split(' ').slice(-1)[0]).join(' & '),
               handicaps: mem.map((p) => p.handicap),
               memberIds: mem.map((p) => p.id),
             }));

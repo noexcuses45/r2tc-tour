@@ -351,7 +351,7 @@ export function bestBallStandings(round: Round): TeamStanding[] {
     });
     out.push({
       ids,
-      name: members.map((p) => p.name.split(' ')[0]).join(' & '),
+      name: members.map((p) => p.name.trim().split(' ').slice(-1)[0]).join(' & '),
       players: members,
       thru,
       net,
@@ -416,7 +416,7 @@ export function scrambleStandings(round: Round, method?: string): ScrambleStandi
     });
     out.push({
       ids: keys,
-      name: members.map((p) => p.name.split(' ')[0]).join(' & '),
+      name: members.map((p) => p.name.trim().split(' ').slice(-1)[0]).join(' & '),
       players: members,
       teamHcp, thru, gross, net,
       netToPar: net - parPlayed,
