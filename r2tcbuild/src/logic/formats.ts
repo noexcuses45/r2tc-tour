@@ -1,6 +1,6 @@
 // ---------- Game format logic: Match Play, Skins, 2v2 Best Ball ----------
 
-import { playingHandicap, strokesReceived } from './scoring';
+import { playingHandicap, strokesReceived, ambroseTeamHcp } from './scoring';
 import { GameFormat, HoleInfo, Round, RoundPlayer } from '../types';
 
 export const FORMAT_OPTIONS: [GameFormat, string][] = [
@@ -361,6 +361,68 @@ export function bestBallStandings(round: Round): TeamStanding[] {
     });
   }
 
+  out.sort((x, y) => {
+    if (x.thru === 0 && y.thru === 0) return 0;
+    if (x.thru === 0) return 1;
+    if (y.thru === 0) return -1;
+    if (x.netToPar !== y.netToPar) return x.netToPar - y.netToPar;
+    return y.thru - x.thru;
+  });
+  return out;
+}
+
+
+// ---------- 2-Man / Team Scramble (Ambrose) ----------
+
+export interface ScrambleStanding {
+  ids: string[];
+  name: string;
+  players: RoundPlayer[];
+  teamHcp: number;
+  thru: number;
+  gross: number;
+  net: number;
+  netToPar: number;
+  stableford: number;
+  holeNets: (number | null)[];
+}
+
+export function scrambleStandings(round: Round, method?: string): ScrambleStanding[] {
+  const holes = round.holes;
+  const byKey = new Map<string, RoundPlayer>();
+  round.players.forEach((p) => { byKey.set(p.id, p); byKey.set(p.name, p); });
+  const out: ScrambleStanding[] = [];
+  for (const keys of teamsForRound(round)) {
+    const members = keys.map((k) => byKey.get(k)).filter((p): p is RoundPlayer => !!p);
+    if (members.length === 0) continue;
+    const phs = members.map((p) => playingHandicap(p.handicap, holes.length));
+    const teamHcp = ambroseTeamHcp(phs, method);
+    const holeNets: (number | null)[] = holes.map((h, i) => {
+      const vals = members
+        .map((p) => p.scores[i])
+        .filter((v): v is number => v !== null && v !== undefined && v > 0);
+      if (vals.length === 0) return null;
+      const teamGross = Math.min(...vals);
+      return teamGross - strokesReceived(teamHcp, h, holes);
+    });
+    let thru = 0, net = 0, gross = 0, parPlayed = 0, stableford = 0;
+    holeNets.forEach((nH, i) => {
+      if (nH === null) return;
+      thru += 1;
+      net += nH;
+      gross += nH + strokesReceived(teamHcp, holes[i], holes);
+      parPlayed += holes[i].par;
+      stableford += Math.max(0, 2 + holes[i].par - nH);
+    });
+    out.push({
+      ids: keys,
+      name: members.map((p) => p.name.split(' ')[0]).join(' & '),
+      players: members,
+      teamHcp, thru, gross, net,
+      netToPar: net - parPlayed,
+      stableford, holeNets,
+    });
+  }
   out.sort((x, y) => {
     if (x.thru === 0 && y.thru === 0) return 0;
     if (x.thru === 0) return 1;

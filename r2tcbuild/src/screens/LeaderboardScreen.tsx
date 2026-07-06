@@ -20,6 +20,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
+import { scrambleStandings } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
 type Tab = GameFormat | 'contests';
@@ -83,13 +84,11 @@ export default function LeaderboardScreen({ round }: Props) {
   const standings = leaderboard(round.players, round.holes, listFormat);
 
   const specialTab: [Tab, string] | null =
-    round.primaryFormat === 'matchplay'
-      ? ['matchplay', 'Matches']
-      : round.primaryFormat === 'skins'
-        ? ['skins', 'Skins']
-        : round.primaryFormat === 'bestball'
-          ? ['bestball', 'Best Ball']
-          : null;
+    round.primaryFormat === 'matchplay' ? ['matchplay', 'Matches']
+    : round.primaryFormat === 'skins' ? ['skins', 'Skins']
+    : round.primaryFormat === 'bestball' ? ['bestball', 'Best Ball']
+    : (round.primaryFormat === 'scramble_stroke' || round.primaryFormat === 'tscramble_stroke') ? ['scramble_stroke', 'Scramble']
+    : null;
 
   const tabs: [Tab, string][] = [
     ...(specialTab ? [specialTab] : []),
@@ -276,7 +275,26 @@ export default function LeaderboardScreen({ round }: Props) {
           </Text>
           <View style={{ height: 30 }} />
         </ScrollView>
-      ) : tab === 'contests' ? (
+      ) : tab === 'scramble_stroke' ? (
+  <ScrollView>
+    {scrambleStandings(round, (round.formatSettings || {}).scrambleMethod).map((t, i) => (
+      <View key={t.ids.join('-')} style={styles.cardWrap}>
+        <View style={styles.row}>
+          <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{t.name}</Text>
+            <Text style={styles.hcp}>Team HCP {t.teamHcp} · {t.stableford} pts</Text>
+          </View>
+          <Text style={[styles.value, styles.colRight]}>{t.thru > 0 ? t.net : '–'}</Text>
+          <Text style={[styles.toPar, styles.colRight]}>{t.thru > 0 ? formatToPar(t.netToPar) : ''}</Text>
+          <Text style={[styles.thru, styles.colRight]}>{t.thru}</Text>
+        </View>
+      </View>
+    ))}
+    <Text style={styles.legend}>Team score per hole = the team ball, off the Ambrose team handicap (combined ÷ 4).</Text>
+    <View style={{ height: 30 }} />
+  </ScrollView>
+) : tab === 'contests' ? (
         <ScrollView>
           {CONTEST_SECTIONS.map(([type, label, icon]) => {
             const holes = round.contests?.[type] ?? [];
