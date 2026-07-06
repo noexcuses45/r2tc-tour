@@ -15,7 +15,7 @@ export default function PastRoundsScreen({ rounds, onView, onBack, isAdmin, onDe
         {rounds.length === 0 ? (
           <Text style={styles.empty}>No past rounds yet. Finish a round and it will show here.</Text>
         ) : (
-          rounds.map((r) => (
+          [...rounds].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).map((r) => (
             <TouchableOpacity key={r.id} style={styles.row} onPress={() => onView(r)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{r.name}</Text>
