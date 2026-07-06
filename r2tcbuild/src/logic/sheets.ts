@@ -486,8 +486,10 @@ export function cleanLeaderName(s: string): string {
 
 
 /** Course records from the tour sheet. Tab 'Course Records':
- *  Course | Record | Player | Year (row 1 is the header). */
+ *  Category | Course | Record | Player | Year (row 1 is the header).
+ *  Each distinct category becomes a button in the app. */
 export interface CourseRecordRow {
+  category: string;
   course: string;
   record: string;
   player: string;
@@ -498,10 +500,11 @@ export async function fetchCourseRecords(): Promise<CourseRecordRow[]> {
   const rows = await fetchTabRows('Course Records');
   return rows
     .map((r) => ({
-      course: tidy(r[0] || ''),
-      record: tidy(r[1] || ''),
-      player: tidy(r[2] || ''),
-      year: tidy(r[3] || ''),
+      category: tidy(r[0] || ''),
+      course: tidy(r[1] || ''),
+      record: tidy(r[2] || ''),
+      player: tidy(r[3] || ''),
+      year: tidy(r[4] || ''),
     }))
-    .filter((r) => r.course && r.course.toLowerCase() !== 'course');
+    .filter((r) => r.category && r.course && r.category.toLowerCase() !== 'category');
 }
