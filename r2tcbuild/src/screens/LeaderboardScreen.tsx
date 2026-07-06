@@ -20,7 +20,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
-import { scrambleStandings, teamBallStandings } from '../logic/formats';
+import { scrambleStandings, teamBallStandings, teamMatchesForRound, teamMatchState } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
 type Tab = GameFormat | 'contests';
@@ -92,6 +92,7 @@ export default function LeaderboardScreen({ round }: Props) {
     : round.primaryFormat === 'bb_stableford' ? ['bb_stableford', 'Better Ball']
     : round.primaryFormat === 'tbb_stroke' ? ['tbb_stroke', 'Best Ball']
     : round.primaryFormat === 'tbb_stableford' ? ['tbb_stableford', 'Best Ball']
+    : (round.primaryFormat === 'bb_match' || round.primaryFormat === 'scramble_match' || round.primaryFormat === 'foursome_match' || round.primaryFormat === 'greensome_match') ? ([round.primaryFormat, 'Matches'] as [Tab, string])
     : null;
 
   const tabs: [Tab, string][] = [
@@ -331,7 +332,33 @@ export default function LeaderboardScreen({ round }: Props) {
               </ScrollView>
             );
           })()
-        ) : tab === 'contests' ? (
+        ) : (tab === 'bb_match' || tab === 'scramble_match' || tab === 'foursome_match' || tab === 'greensome_match') ? (
+        <ScrollView>
+          {teamMatchesForRound(round).map((pair, mi) => {
+            const m = teamMatchState(round, pair[0], pair[1]);
+            return (
+              <View key={mi} style={styles.matchCard}>
+                <Text style={styles.matchNo}>MATCH {mi + 1}</Text>
+                <View style={styles.matchNames}>
+                  <Text style={[styles.matchName, m.diff > 0 && styles.matchNameUp]} numberOfLines={1}>{m.aName}</Text>
+                  <Text style={styles.matchVs}>vs</Text>
+                  <Text style={[styles.matchName, styles.matchNameRight, m.diff < 0 && styles.matchNameUp]} numberOfLines={1}>{m.bName}</Text>
+                </View>
+                <Text style={styles.matchSummary}>{m.summary}</Text>
+                <View style={styles.matchStrip}>
+                  {m.marks.map((mark, i) => (
+                    <View key={i} style={[styles.matchDot, mark === 'a' && styles.matchDotA, mark === 'b' && styles.matchDotB, mark === 'half' && styles.matchDotHalf]}>
+                      <Text style={styles.matchDotText}>{round.holeNumbers[i]}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+          <Text style={styles.legend}>Green = left team won the hole · Red = right team · Grey = halved</Text>
+          <View style={{ height: 30 }} />
+        </ScrollView>
+      ) : tab === 'contests' ? (
         <ScrollView>
           {CONTEST_SECTIONS.map(([type, label, icon]) => {
             const holes = round.contests?.[type] ?? [];

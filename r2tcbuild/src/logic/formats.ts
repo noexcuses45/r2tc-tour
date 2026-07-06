@@ -479,3 +479,117 @@ export function teamBallStandings(round: Round, bestN: number): TeamBallStanding
   }
   return out;
 }
+
+
+// ---------- Team Match Play (Better Ball / Scramble / Foursome / Greensome) ----------
+
+export interface TeamMatchStateT {
+  aName: string;
+  bName: string;
+  marks: HoleMark[];
+  diff: number;
+  thru: number;
+  finished: boolean;
+  summary: string;
+}
+
+function teamNameOf(members: RoundPlayer[]): string {
+  return members.map((p) => p.name.trim().split(' ').slice(-1)[0]).join(' & ');
+}
+
+/** Net score per hole for a team, per the round's team-play format. */
+function teamNetPerHole(round: Round, members: RoundPlayer[]): (number | null)[] {
+  const holes = round.holes;
+  const fmt = round.primaryFormat;
+  const phs = members.map((p) => playingHandicap(p.handicap, holes.length));
+  if (fmt === 'bb_match') {
+    // Each partner plays own ball; better net counts.
+    const memberNets = members.map((p, mi) => netScores(p, holes, phs[mi]));
+    return holes.map((_, i) => {
+      const avail = memberNets.map((n) => n[i]).filter((n): n is number => n !== null);
+      return avail.length ? Math.min(...avail) : null;
+    });
+  }
+  // Single team ball off a team handicap.
+  let teamHcp: number;
+  if (fmt === 'scramble_match') {
+    teamHcp = ambroseTeamHcp(phs);
+  } else if (fmt === 'foursome_match') {
+    teamHcp = Math.round(0.5 * phs.reduce((a, b) => a + b, 0));
+  } else if (fmt === 'greensome_match') {
+    const sorted = [...phs].sort((a, b) => a - b);
+    teamHcp = Math.round(0.6 * sorted[0] + 0.4 * sorted[sorted.length - 1]);
+  } else {
+    teamHcp = Math.round(phs.reduce((a, b) => a + b, 0) / (phs.length || 1));
+  }
+  return holes.map((h, i) => {
+    const vals = members
+      .map((p) => p.scores[i])
+      .filter((v): v is number => v !== null && v !== undefined && v > 0);
+    if (!vals.length) return null;
+    return Math.min(...vals) - strokesReceived(teamHcp, h, holes);
+  });
+}
+
+/** Two-team match pairings: teams paired in order (t0 vs t1, t2 vs t3 ...). */
+export function teamMatchesForRound(round: Round): [string[], string[]][] {
+  const teams = teamsForRound(round);
+  const pairs: [string[], string[]][] = [];
+  for (let i = 0; i + 1 < teams.length; i += 2) {
+    pairs.push([teams[i], teams[i + 1]]);
+  }
+  return pairs;
+}
+
+export function teamMatchState(
+  round: Round,
+  aKeys: string[],
+  bKeys: string[],
+): TeamMatchStateT {
+  const byKey = new Map<string, RoundPlayer>();
+  round.players.forEach((p) => { byKey.set(p.id, p); byKey.set(p.name, p); });
+  const aMembers = aKeys.map((k) => byKey.get(k)).filter((p): p is RoundPlayer => !!p);
+  const bMembers = bKeys.map((k) => byKey.get(k)).filter((p): p is RoundPlayer => !!p);
+  const netA = teamNetPerHole(round, aMembers);
+  const netB = teamNetPerHole(round, bMembers);
+  const holes = round.holes;
+
+  const marks: HoleMark[] = [];
+  let diff = 0, thru = 0, decided = false, decidedAt = 0;
+  for (let i = 0; i < holes.length; i++) {
+    const na = netA[i], nb = netB[i];
+    if (decided || na === null || nb === null) { marks.push(null); continue; }
+    thru += 1;
+    if (na < nb) { diff += 1; marks.push('a'); }
+    else if (nb < na) { diff -= 1; marks.push('b'); }
+    else marks.push('half');
+    const remaining = holes.length - (i + 1);
+    if (Math.abs(diff) > remaining) { decided = true; decidedAt = i + 1; }
+  }
+
+  const aName = teamNameOf(aMembers);
+  const bName = teamNameOf(bMembers);
+  let summary: string;
+  let finished = false;
+  if (decided) {
+    finished = true;
+    const winner = diff > 0 ? aName : bName;
+    const rem = holes.length - decidedAt;
+    summary = rem > 0
+      ? `${winner} wins ${Math.abs(diff)}&${rem}`
+      : `${winner} wins ${Math.abs(diff)} UP`;
+  } else if (thru === holes.length) {
+    finished = true;
+    summary = diff === 0
+      ? 'Match halved'
+      : `${diff > 0 ? aName : bName} wins ${Math.abs(diff)} UP`;
+  } else if (thru === 0) {
+    summary = 'Not started';
+  } else if (diff === 0) {
+    summary = `All square thru ${thru}`;
+  } else {
+    summary = `${diff > 0 ? aName : bName} ${Math.abs(diff)} UP thru ${thru}`;
+  }
+
+  return { aName, bName, marks, diff, thru, finished, summary };
+}

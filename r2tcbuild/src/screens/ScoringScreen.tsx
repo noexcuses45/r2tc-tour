@@ -47,7 +47,10 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
 
   const isScramble =
     round.primaryFormat === 'scramble_stroke' ||
-    round.primaryFormat === 'tscramble_stroke';
+    round.primaryFormat === 'tscramble_stroke' ||
+    round.primaryFormat === 'scramble_match' ||
+    round.primaryFormat === 'foursome_match' ||
+    round.primaryFormat === 'greensome_match';
   const units: { key: string; label: string; handicaps: number[]; memberIds: string[] }[] =
     isScramble
       ? (() => {
