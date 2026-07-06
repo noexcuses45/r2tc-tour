@@ -20,7 +20,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
-import { scrambleStandings } from '../logic/formats';
+import { scrambleStandings, teamBallStandings } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
 type Tab = GameFormat | 'contests';
@@ -88,11 +88,15 @@ export default function LeaderboardScreen({ round }: Props) {
     : round.primaryFormat === 'skins' ? ['skins', 'Skins']
     : round.primaryFormat === 'bestball' ? ['bestball', 'Best Ball']
     : (round.primaryFormat === 'scramble_stroke' || round.primaryFormat === 'tscramble_stroke') ? ['scramble_stroke', 'Scramble']
+    : round.primaryFormat === 'bb_stroke' ? ['bb_stroke', 'Better Ball']
+    : round.primaryFormat === 'bb_stableford' ? ['bb_stableford', 'Better Ball']
+    : round.primaryFormat === 'tbb_stroke' ? ['tbb_stroke', 'Best Ball']
+    : round.primaryFormat === 'tbb_stableford' ? ['tbb_stableford', 'Best Ball']
     : null;
 
   const tabs: [Tab, string][] = [
     ...(specialTab ? [specialTab] : []),
-    ...((round.primaryFormat === 'scramble_stroke' || round.primaryFormat === 'tscramble_stroke') ? ([] as [Tab, string][]) : round.primaryFormat === 'stableford'
+    ...(specialTab ? ([] as [Tab, string][]) : round.primaryFormat === 'stableford'
       ? ([['stableford', 'Stableford'], ['stroke', specialTab ? 'Stroke' : 'Stroke Play NET']] as [Tab, string][])
       : ([['stroke', specialTab ? 'Stroke' : 'Stroke Play NET'], ['stableford', 'Stableford']] as [Tab, string][])),
     ...(hasContests ? ([['contests', 'Contests']] as [Tab, string][]) : []),
@@ -295,7 +299,39 @@ export default function LeaderboardScreen({ round }: Props) {
     <Text style={styles.legend}>Team score per hole = the team ball, off the Ambrose team handicap (combined ÷ 4).</Text>
     <View style={{ height: 30 }} />
   </ScrollView>
-) : tab === 'contests' ? (
+) : (tab === 'bb_stroke' || tab === 'bb_stableford' || tab === 'tbb_stroke' || tab === 'tbb_stableford') ? (
+          (() => {
+            const isStbl = tab === 'bb_stableford' || tab === 'tbb_stableford';
+            const bestN = tab === 'tbb_stroke' || tab === 'tbb_stableford' ? ((round.formatSettings || {}).bestN || 2) : 1;
+            const rows = teamBallStandings(round, bestN);
+            rows.sort((a, b) => {
+              if (a.thru === 0 && b.thru === 0) return 0;
+              if (a.thru === 0) return 1;
+              if (b.thru === 0) return -1;
+              return isStbl ? b.stableford - a.stableford : a.netToPar - b.netToPar;
+            });
+            return (
+              <ScrollView>
+                {rows.map((tm, i) => (
+                  <View key={tm.ids.join('-')} style={styles.cardWrap}>
+                    <View style={styles.row}>
+                      <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.name}>{tm.name}</Text>
+                        <Text style={styles.hcp}>{isStbl ? tm.stableford + ' pts' : tm.thru + ' holes'}</Text>
+                      </View>
+                      <Text style={[styles.value, styles.colRight]}>{isStbl ? tm.stableford : tm.thru > 0 ? tm.net : '–'}</Text>
+                      <Text style={[styles.toPar, styles.colRight]}>{isStbl ? '' : tm.thru > 0 ? formatToPar(tm.netToPar) : ''}</Text>
+                      <Text style={[styles.thru, styles.colRight]}>{tm.thru}</Text>
+                    </View>
+                  </View>
+                ))}
+                <Text style={styles.legend}>{isStbl ? 'Best ball — best Stableford point(s) per hole per team.' : 'Best ball — best net ball(s) per hole per team.'}</Text>
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            );
+          })()
+        ) : tab === 'contests' ? (
         <ScrollView>
           {CONTEST_SECTIONS.map(([type, label, icon]) => {
             const holes = round.contests?.[type] ?? [];

@@ -432,3 +432,50 @@ export function scrambleStandings(round: Round, method?: string): ScrambleStandi
   });
   return out;
 }
+
+
+// ---------- Better Ball / Team Best Ball (best-N net or stableford per hole) ----------
+
+export interface TeamBallStanding {
+  ids: string[];
+  name: string;
+  players: RoundPlayer[];
+  thru: number;
+  net: number;
+  netToPar: number;
+  stableford: number;
+}
+
+export function teamBallStandings(round: Round, bestN: number): TeamBallStanding[] {
+  const holes = round.holes;
+  const byKey = new Map<string, RoundPlayer>();
+  round.players.forEach((p) => { byKey.set(p.id, p); byKey.set(p.name, p); });
+  const out: TeamBallStanding[] = [];
+  for (const keys of teamsForRound(round)) {
+    const members = keys.map((k) => byKey.get(k)).filter((p): p is RoundPlayer => !!p);
+    if (!members.length) continue;
+    const memberNets = members.map((p) => netScores(p, holes, playingHandicap(p.handicap, holes.length)));
+    let thru = 0, net = 0, parRef = 0, stableford = 0;
+    holes.forEach((h, i) => {
+      const nets = memberNets.map((mn) => mn[i]).filter((x): x is number => x !== null);
+      if (!nets.length) return;
+      thru += 1;
+      const take = Math.min(bestN, nets.length);
+      const bestNets = [...nets].sort((a, b) => a - b).slice(0, take);
+      net += bestNets.reduce((a, b) => a + b, 0);
+      parRef += take * h.par;
+      const stbs = nets.map((nn) => Math.max(0, 2 + h.par - nn)).sort((a, b) => b - a).slice(0, take);
+      stableford += stbs.reduce((a, b) => a + b, 0);
+    });
+    out.push({
+      ids: keys,
+      name: members.map((p) => p.name.trim().split(' ').slice(-1)[0]).join(' & '),
+      players: members,
+      thru,
+      net,
+      netToPar: net - parRef,
+      stableford,
+    });
+  }
+  return out;
+}
