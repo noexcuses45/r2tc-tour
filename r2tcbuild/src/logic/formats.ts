@@ -593,3 +593,110 @@ export function teamMatchState(
 
   return { aName, bName, marks, diff, thru, finished, summary };
 }
+
+
+// ---------- Erado (individual stroke; worst holes erased to net par) ----------
+
+export interface EradoStanding {
+  player: RoundPlayer;
+  playingHcp: number;
+  thru: number;
+  net: number;
+  netToPar: number;
+  erased: number[]; // display hole numbers erased
+}
+
+export function eradoStandings(round: Round): EradoStanding[] {
+  const holes = round.holes;
+  const eraseCount = (round.formatSettings || {}).eradoCount ?? 4;
+  const lastIdx = holes.length - 1;
+  const out: EradoStanding[] = round.players.map((p) => {
+    const phcp = playingHandicap(p.handicap, holes.length);
+    const played: number[] = [];
+    holes.forEach((_, i) => {
+      if (p.scores[i] !== null && p.scores[i] !== undefined) played.push(i);
+    });
+    const overPar = new Map<number, number>();
+    played.forEach((i) => {
+      const net = (p.scores[i] as number) - strokesReceived(phcp, holes[i], holes);
+      overPar.set(i, net - holes[i].par);
+    });
+    const eligible = played.filter(
+      (i) => i !== lastIdx && (overPar.get(i) ?? 0) > 0,
+    );
+    eligible.sort((a, b) => (overPar.get(b) ?? 0) - (overPar.get(a) ?? 0));
+    const erased = new Set(eligible.slice(0, eraseCount));
+    let net = 0, parPlayed = 0, thru = 0;
+    played.forEach((i) => {
+      thru += 1;
+      parPlayed += holes[i].par;
+      const rawNet = (p.scores[i] as number) - strokesReceived(phcp, holes[i], holes);
+      net += erased.has(i) ? holes[i].par : rawNet;
+    });
+    return {
+      player: p,
+      playingHcp: phcp,
+      thru,
+      net,
+      netToPar: net - parPlayed,
+      erased: [...erased].sort((a, b) => a - b).map((i) => round.holeNumbers[i]),
+    };
+  });
+  out.sort((x, y) => {
+    if (x.thru === 0 && y.thru === 0) return 0;
+    if (x.thru === 0) return 1;
+    if (y.thru === 0) return -1;
+    if (x.netToPar !== y.netToPar) return x.netToPar - y.netToPar;
+    return y.thru - x.thru;
+  });
+  return out;
+}
+
+// ---------- Duplicate (individual net Stableford with per-hole multipliers) ----------
+
+export interface DuplicateStanding {
+  player: RoundPlayer;
+  playingHcp: number;
+  thru: number;
+  points: number;
+}
+
+/** Per-hole multipliers (1/2/3), shared by all players. Last hole always 2x. */
+export function duplicateMultipliers(round: Round): number[] {
+  const stored = (round.formatSettings || {}).multipliers as number[] | undefined;
+  const n = round.holes.length;
+  if (stored && stored.length === n) return stored;
+  let seed = 0;
+  const key = round.name || 'r2tc';
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const mult = round.holes.map(() => {
+    const r = rand();
+    return r < 0.34 ? 1 : r < 0.67 ? 2 : 3;
+  });
+  if (n > 0) mult[n - 1] = 2;
+  return mult;
+}
+
+export function duplicateStandings(round: Round): DuplicateStanding[] {
+  const holes = round.holes;
+  const mult = duplicateMultipliers(round);
+  const out: DuplicateStanding[] = round.players.map((p) => {
+    const phcp = playingHandicap(p.handicap, holes.length);
+    let points = 0, thru = 0;
+    holes.forEach((h, i) => {
+      const g = p.scores[i];
+      if (g === null || g === undefined) return;
+      thru += 1;
+      const net = (g as number) - strokesReceived(phcp, h, holes);
+      const stb = Math.max(0, 2 + h.par - net);
+      points += stb * mult[i];
+    });
+    return { player: p, playingHcp: phcp, thru, points };
+  });
+  out.sort((x, y) => y.points - x.points || y.thru - x.thru);
+  return out;
+}

@@ -20,7 +20,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
-import { scrambleStandings, teamBallStandings, teamMatchesForRound, teamMatchState } from '../logic/formats';
+import { scrambleStandings, teamBallStandings, teamMatchesForRound, teamMatchState, eradoStandings, duplicateStandings } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
 type Tab = GameFormat | 'contests';
@@ -93,6 +93,8 @@ export default function LeaderboardScreen({ round }: Props) {
     : round.primaryFormat === 'tbb_stroke' ? ['tbb_stroke', 'Best Ball']
     : round.primaryFormat === 'tbb_stableford' ? ['tbb_stableford', 'Best Ball']
     : (round.primaryFormat === 'bb_match' || round.primaryFormat === 'scramble_match' || round.primaryFormat === 'foursome_match' || round.primaryFormat === 'greensome_match') ? ([round.primaryFormat, 'Matches'] as [Tab, string])
+    : round.primaryFormat === 'erado' ? (['erado', 'Erado'] as [Tab, string])
+    : round.primaryFormat === 'duplicate' ? (['duplicate', 'Duplicate'] as [Tab, string])
     : null;
 
   const tabs: [Tab, string][] = [
@@ -358,7 +360,45 @@ export default function LeaderboardScreen({ round }: Props) {
           <Text style={styles.legend}>Green = left team won the hole · Red = right team · Grey = halved</Text>
           <View style={{ height: 30 }} />
         </ScrollView>
-      ) : tab === 'contests' ? (
+      ) : tab === 'erado' ? (
+        <ScrollView>
+          {eradoStandings(round).map((s, i) => (
+            <View key={s.player.id} style={styles.cardWrap}>
+              <View style={styles.row}>
+                <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{s.player.name}</Text>
+                  <Text style={styles.hcp}>{s.erased.length ? 'Erased ' + s.erased.join(', ') : 'PHCP ' + s.playingHcp}</Text>
+                </View>
+                <Text style={[styles.value, styles.colRight]}>{s.thru > 0 ? s.net : '–'}</Text>
+                <Text style={[styles.toPar, styles.colRight]}>{s.thru > 0 ? formatToPar(s.netToPar) : ''}</Text>
+                <Text style={[styles.thru, styles.colRight]}>{s.thru}</Text>
+              </View>
+            </View>
+          ))}
+          <Text style={styles.legend}>Worst holes are erased to net par (final hole protected). Lowest net wins.</Text>
+          <View style={{ height: 30 }} />
+        </ScrollView>
+) : tab === 'duplicate' ? (
+        <ScrollView>
+          {duplicateStandings(round).map((s, i) => (
+            <View key={s.player.id} style={styles.cardWrap}>
+              <View style={styles.row}>
+                <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{s.player.name}</Text>
+                  <Text style={styles.hcp}>PHCP {s.playingHcp}</Text>
+                </View>
+                <Text style={[styles.value, styles.colRight]}>{s.points}</Text>
+                <Text style={[styles.toPar, styles.colRight]} />
+                <Text style={[styles.thru, styles.colRight]}>{s.thru}</Text>
+              </View>
+            </View>
+          ))}
+          <Text style={styles.legend}>Net Stableford with random ×1/×2/×3 holes (last hole always ×2). Most points wins.</Text>
+          <View style={{ height: 30 }} />
+        </ScrollView>
+) : tab === 'contests' ? (
         <ScrollView>
           {CONTEST_SECTIONS.map(([type, label, icon]) => {
             const holes = round.contests?.[type] ?? [];
