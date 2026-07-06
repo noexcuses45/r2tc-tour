@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, PanResponder, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
-import { scoreLabel, strokesReceived, playingHandicap } from '../logic/scoring';
+import { scoreLabel, strokesReceived, playingHandicap, ambroseTeamHcp } from '../logic/scoring';
 import { getEvent, pushContestResult, removeContestResult } from '../logic/liveEvents';
 import { colors, radius } from '../theme';
-import { ContestResult, ContestType, Round } from '../types';
+import { teamsForRound } from '../logic/formats';
+import { ContestResult, ContestType, Round, RoundPlayer } from '../types';
 
 const CONTEST_LABELS: Record<ContestType, string> = {
   longestDrive: 'Longest Drive',
@@ -43,6 +44,26 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
   const hole = round.holes[holeIdx];
   const holeNo = round.holeNumbers[holeIdx];
   const n = round.holes.length;
+
+  const isScramble =
+    round.primaryFormat === 'scramble_stroke' ||
+    round.primaryFormat === 'tscramble_stroke';
+  const units: { key: string; label: string; handicaps: number[]; memberIds: string[] }[] =
+    isScramble
+      ? (() => {
+          const byKey = new Map<string, RoundPlayer>();
+          round.players.forEach((p) => { byKey.set(p.id, p); byKey.set(p.name, p); });
+          return teamsForRound(round)
+            .map((keys) => keys.map((k) => byKey.get(k)).filter((x): x is RoundPlayer => !!x))
+            .filter((mem) => mem.length > 0)
+            .map((mem) => ({
+              key: mem.map((p) => p.id).join('+'),
+              label: mem.map((p) => p.name.split(' ')[0]).join(' & '),
+              handicaps: mem.map((p) => p.handicap),
+              memberIds: mem.map((p) => p.id),
+            }));
+        })()
+      : round.players.map((p) => ({ key: p.id, label: p.name, handicaps: [p.handicap], memberIds: [p.id] }));
 
   const goHole = (delta: number) => {
     const next = Math.min(n - 1, Math.max(0, holeIdx + delta));
@@ -128,17 +149,16 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
   };
 
   const setScore = (value: number | null) => {
-    const players = round.players.map((p, pi) =>
-      pi === activePlayer
-        ? {
-            ...p,
-            scores: p.scores.map((s, si) => (si === holeIdx ? value : s)),
-          }
+    const unit = units[activePlayer];
+    const ids = new Set(unit ? unit.memberIds : []);
+    const players = round.players.map((p) =>
+      ids.has(p.id)
+        ? { ...p, scores: p.scores.map((sc, si) => (si === holeIdx ? value : sc)) }
         : p,
     );
     onUpdate({ ...round, players });
     if (value !== null) {
-      if (activePlayer < round.players.length - 1) {
+      if (activePlayer < units.length - 1) {
         setActivePlayer(activePlayer + 1);
       } else if (holeIdx < n - 1) {
         setActivePlayer(0);
@@ -215,49 +235,45 @@ export default function ScoringScreen({ round, onUpdate }: Props) {
 
       <View style={{ flex: 1 }} {...swipe.panHandlers}>
         <ScrollView style={styles.playerList}>
-          {round.players.map((p, pi) => {
-            const score = p.scores[holeIdx];
-            const phcp = playingHandicap(p.handicap, n);
-            const recv = strokesReceived(phcp, hole, round.holes);
-            const isActive = pi === activePlayer;
-            const under = score !== null && score < hole.par;
-            const over = score !== null && score > hole.par;
-            return (
-              <TouchableOpacity
-                key={p.id}
-                style={[styles.playerRow, isActive && styles.playerRowActive]}
-                onPress={() => setActivePlayer(pi)}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.playerName}>{p.name}</Text>
-                  <Text style={styles.playerHcp}>
-                    HCP {p.handicap}
-                    {recv !== 0
-                      ? ` · ${recv} stroke${Math.abs(recv) > 1 ? 's' : ''} here`
-                      : ''}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.scoreBubble,
-                    score === null && styles.scoreBubbleEmpty,
-                    under && styles.scoreBubbleUnder,
-                    over && styles.scoreBubbleOver,
-                  ]}
+          {units.map((u, ui) => {
+              const rep = round.players.find((pp) => pp.id === u.memberIds[0]);
+              const score = rep ? rep.scores[holeIdx] : null;
+              const phcp = isScramble
+                ? ambroseTeamHcp(u.handicaps.map((h) => playingHandicap(h, n)))
+                : playingHandicap(u.handicaps[0], n);
+              const recv = strokesReceived(phcp, hole, round.holes);
+              const isActive = ui === activePlayer;
+              const under = score !== null && score < hole.par;
+              const over = score !== null && score > hole.par;
+              return (
+                <TouchableOpacity
+                  key={u.key}
+                  style={[styles.playerRow, isActive && styles.playerRowActive]}
+                  onPress={() => setActivePlayer(ui)}
                 >
-                  <Text
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.playerName}>{u.label}</Text>
+                    <Text style={styles.playerHcp}>
+                      HCP {isScramble ? phcp : u.handicaps[0]}
+                      {recv !== 0 ? ` · ${recv} stroke${Math.abs(recv) > 1 ? 's' : ''} here` : ''}
+                    </Text>
+                  </View>
+                  <View
                     style={[
-                      styles.scoreText,
-                      score === null && styles.scoreTextEmpty,
+                      styles.scoreBubble,
+                      score === null && styles.scoreBubbleEmpty,
+                      under && styles.scoreBubbleUnder,
+                      over && styles.scoreBubbleOver,
                     ]}
                   >
-                    {score ?? '–'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-          <Text style={styles.swipeHint}>‹ swipe to change holes ›</Text>
+                    <Text style={[styles.scoreText, score === null && styles.scoreTextEmpty]}>
+                      {score ?? '–'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <Text style={styles.swipeHint}>‹ swipe to change holes ›</Text>
         </ScrollView>
       </View>
 
