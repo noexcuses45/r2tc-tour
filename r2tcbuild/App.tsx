@@ -258,9 +258,12 @@ function AppMain() {
         let changed = false;
         const merged = (prev || []).map((r: any) => {
           const f = r.liveEventId ? byEid[r.liveEventId] : null;
-          if (f && (f.contestResults || []).length && !(r.contestResults || []).length) {
-            changed = true;
-            return { ...r, contestResults: f.contestResults };
+          if (f) {
+            const differs =
+              f.name !== r.name ||
+              (f.players || []).length !== (r.players || []).length ||
+              (f.contestResults || []).length !== (r.contestResults || []).length;
+            if (differs) { changed = true; return f; }
           }
           return r;
         });
