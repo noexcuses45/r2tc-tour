@@ -92,8 +92,9 @@ export default function LeaderboardScreen({ round }: Props) {
 
   const tabs: [Tab, string][] = [
     ...(specialTab ? [specialTab] : []),
-    ['stroke', specialTab ? 'Stroke' : 'Stroke Play NET'],
-    ['stableford', 'Stableford'],
+    ...(round.primaryFormat === 'stableford'
+      ? ([['stableford', 'Stableford'], ['stroke', specialTab ? 'Stroke' : 'Stroke Play NET']] as [Tab, string][])
+      : ([['stroke', specialTab ? 'Stroke' : 'Stroke Play NET'], ['stableford', 'Stableford']] as [Tab, string][])),
     ...(hasContests ? ([['contests', 'Contests']] as [Tab, string][]) : []),
   ];
 
@@ -135,7 +136,7 @@ export default function LeaderboardScreen({ round }: Props) {
             {tab === 'stableford' ? 'PTS' : 'NET'}
           </Text>
           <Text style={[styles.colText, styles.colRight]}>
-            {tab === 'stableford' ? '' : 'TO PAR'}
+            {'TO PAR'}
           </Text>
           <Text style={[styles.colText, styles.colRight]}>THRU</Text>
         </View>
@@ -369,11 +370,7 @@ export default function LeaderboardScreen({ round }: Props) {
                     {tab === 'stableford' ? s.stableford : s.thru > 0 ? s.net : '–'}
                   </Text>
                   <Text style={[styles.toPar, styles.colRight]}>
-                    {tab === 'stableford'
-                      ? ''
-                      : s.thru > 0
-                        ? formatToPar(s.netToPar)
-                        : ''}
+                    {tab === 'stableford' ? (s.thru > 0 ? formatToPar(2 * round.holes.length - s.stableford) : '') : s.thru > 0 ? formatToPar(s.netToPar) : ''}
                   </Text>
                   <Text style={[styles.thru, styles.colRight]}>{s.thru}</Text>
                 </TouchableOpacity>
