@@ -467,7 +467,7 @@ function AppMain() {
           ) : historyTab === 'settings' && historyCanEdit ? (
             <SettingsScreen round={historyRound as any} onClose={async () => { try { const ev = await getEvent((historyRound as any).liveEventId); if (ev) { const fr = await buildFinishedRoundFromEvent(ev); setHistoryRound(fr as any); } } catch (e) {} setHistoryTab('leaderboard'); }} />
           ) : (
-            <LeaderboardScreen round={historyRound} />
+            <LeaderboardScreen round={historyRound} isAdmin={ADMIN_EMAILS.map((e) => e.toLowerCase()).includes((meEmail || '').toLowerCase())} onRefresh={async () => { try { const ev = await getEvent((historyRound as any).liveEventId); if (ev) { const fr = await buildFinishedRoundFromEvent(ev); setHistoryRound(fr as any); } } catch (e) {} }} />
           )}
         </View>
         <View style={styles.tabBar}>

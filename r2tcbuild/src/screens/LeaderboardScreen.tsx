@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import {
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -20,6 +23,7 @@ import {
   playingHandicap,
 } from '../logic/scoring';
 import { colors, radius } from '../theme';
+import { renamePlayer } from '../logic/liveEvents';
 import { scrambleStandings, teamBallStandings, teamMatchesForRound, teamMatchState, eradoStandings, duplicateStandings } from '../logic/formats';
 import { ContestResult, ContestType, GameFormat, Round } from '../types';
 
@@ -32,6 +36,8 @@ const CONTEST_SECTIONS: [ContestType, string, string][] = [
 
 interface Props {
   round: Round;
+  isAdmin?: boolean;
+  onRefresh?: () => void;
 }
 
 function playingHcpOf(p: { handicap: number }, round: Round): number {
@@ -71,9 +77,11 @@ function NineSection({ results, holes, nums, tab, from, to, label }: any) {
   );
 }
 
-export default function LeaderboardScreen({ round }: Props) {
+export default function LeaderboardScreen({ round, isAdmin, onRefresh }: Props) {
   const [tab, setTab] = useState<Tab>(round.primaryFormat);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
 
   const hasContests =
     (round.contests?.longestDrive.length ?? 0) +
@@ -367,7 +375,7 @@ export default function LeaderboardScreen({ round }: Props) {
               <View style={styles.row}>
                 <Text style={[styles.rank, { width: 30 }]}>{i + 1}.</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{s.player.name}</Text>
+                  <Text style={styles.name} onPress={isAdmin ? () => { setDraft(s.player.name); setRenaming(s.player.name); } : undefined}>{s.player.name}{isAdmin ? '  ✎' : ''}</Text>
                   <Text style={styles.hcp}>{s.erased.length ? 'Erased ' + s.erased.join(', ') : 'PHCP ' + s.playingHcp}</Text>
                 </View>
                 <Text style={[styles.value, styles.colRight]}>{s.thru > 0 ? s.net : '–'}</Text>
@@ -435,7 +443,7 @@ export default function LeaderboardScreen({ round }: Props) {
                                 i === 0 && styles.contestNameLeader,
                               ]}
                             >
-                              {e.winner}
+                              {isAdmin ? (<Text onPress={() => { setDraft(e.winner); setRenaming(e.winner); }}>{e.winner}  ✎</Text>) : e.winner}
                             </Text>
                             <Text style={styles.contestMetres}>
                               {e.metres !== null ? `${e.metres} m` : '–'}
@@ -486,6 +494,31 @@ export default function LeaderboardScreen({ round }: Props) {
           <View style={{ height: 30 }} />
         </ScrollView>
       )}
+      <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
+        <View style={styles.mBackdrop}>
+          <View style={styles.mCard}>
+            <Text style={styles.mTitle}>Edit player name</Text>
+            <TextInput style={styles.mInput} value={draft} onChangeText={setDraft} autoFocus placeholder="Name" placeholderTextColor="#9AA59E" />
+            <View style={styles.mRow}>
+              <TouchableOpacity style={styles.mBtn} onPress={() => setRenaming(null)}>
+                <Text style={styles.mBtnTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mBtn, styles.mBtnPrimary]} onPress={async () => {
+                const oldName = renaming || ''; const newName = draft.trim();
+                setRenaming(null);
+                if (!newName || newName === oldName) return;
+                const eid = (round as any).liveEventId;
+                if (!eid) { Alert.alert('Cannot rename', 'This round is not linked to an event.'); return; }
+                const res = await renamePlayer(eid, oldName, newName);
+                if (res && res.ok) { if (onRefresh) onRefresh(); }
+                else { Alert.alert('Rename failed', (res && res.error) || 'Please try again.'); }
+              }}>
+                <Text style={[styles.mBtnTxt, { color: '#fff' }]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -685,4 +718,12 @@ const styles = StyleSheet.create({
   },
   skinsBannerText: { fontWeight: '900', fontSize: 13, color: '#3A2E00' },
   skinsCount: { fontSize: 14, fontWeight: '900', color: colors.greenDark },
+  mBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  mCard: { width: '100%', backgroundColor: colors.card, borderRadius: 14, padding: 18 },
+  mTitle: { fontSize: 16, fontWeight: '900', color: colors.text, marginBottom: 12 },
+  mInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: colors.text, backgroundColor: colors.cardAlt },
+  mRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
+  mBtn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: colors.cardAlt },
+  mBtnPrimary: { backgroundColor: colors.green },
+  mBtnTxt: { fontWeight: '800', color: colors.text },
 });

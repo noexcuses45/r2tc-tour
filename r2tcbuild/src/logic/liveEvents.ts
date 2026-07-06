@@ -828,3 +828,46 @@ export async function deleteThread(threadKey: string): Promise<void> {
 export async function unsendDm(messageId: string): Promise<void> {
   try { await fetch(rest('dm_messages?id=eq.' + encodeURIComponent(messageId)), { method: 'DELETE', headers: await authHeaders() }); } catch (e) {}
 }
+
+
+/** Admin: rename a player across a finished/live event (scores, contests, config). */
+export async function renamePlayer(eventId: string, oldName: string, newName: string): Promise<{ ok: boolean; error?: string }> {
+  const on = (oldName || '').trim();
+  const nn = (newName || '').trim();
+  if (!eventId || !on || !nn || on === nn) return { ok: false, error: 'Nothing to change.' };
+  try {
+    const h = await authHeaders();
+    await fetch(rest('live_scores?event_id=eq.' + eventId + '&player_name=eq.' + encodeURIComponent(on)), {
+      method: 'PATCH', headers: h, body: JSON.stringify({ player_name: nn }),
+    });
+    await fetch(rest('live_contests?event_id=eq.' + eventId + '&player_name=eq.' + encodeURIComponent(on)), {
+      method: 'PATCH', headers: h, body: JSON.stringify({ player_name: nn }),
+    });
+    const ev = await getEvent(eventId);
+    const cfg: any = (ev && ev.config) || {};
+    const groups = (cfg.groups || []).map((g: any[]) =>
+      (g || []).map((p: any) => (String(p && p.name || '').trim() === on ? { ...p, name: nn } : p)),
+    );
+    const teams = (cfg.teams || []).map((t: any[]) =>
+      (t || []).map((x: any) =>
+        typeof x === 'string'
+          ? (x.trim() === on ? nn : x)
+          : (x && x.name && String(x.name).trim() === on ? { ...x, name: nn } : x),
+      ),
+    );
+    const patch: any = { groups, teams };
+    if (Array.isArray(cfg.excludeFromRecords)) {
+      patch.excludeFromRecords = cfg.excludeFromRecords.map((x: string) => (String(x).trim() === on ? nn : x));
+    }
+    if (cfg.incompletePlayers && typeof cfg.incompletePlayers === 'object' && cfg.incompletePlayers[on] !== undefined) {
+      const ip: any = { ...cfg.incompletePlayers };
+      ip[nn] = ip[on];
+      delete ip[on];
+      patch.incompletePlayers = ip;
+    }
+    const r = await updateEventConfig(eventId, patch);
+    return { ok: !!r.ok, error: r.ok ? undefined : (r.error || 'Could not update the round.') };
+  } catch (e: any) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+}
