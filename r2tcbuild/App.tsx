@@ -251,10 +251,23 @@ function AppMain() {
       const fin = await fetchMyFinishedRounds(name);
       if (!fin.length) return;
       setRounds((prev: any) => {
-        const haveIds = new Set(prev.filter((r: any) => r.liveEventId).map((r: any) => r.liveEventId));
+        // Refresh contest results on rounds we already have (older syncs
+        // cached them before contests came across), then add new ones.
+        const byEid: any = {};
+        fin.forEach((r: any) => { if (r.liveEventId) byEid[r.liveEventId] = r; });
+        let changed = false;
+        const merged = (prev || []).map((r: any) => {
+          const f = r.liveEventId ? byEid[r.liveEventId] : null;
+          if (f && (f.contestResults || []).length && !(r.contestResults || []).length) {
+            changed = true;
+            return { ...r, contestResults: f.contestResults };
+          }
+          return r;
+        });
+        const haveIds = new Set(merged.filter((r: any) => r.liveEventId).map((r: any) => r.liveEventId));
         const add = fin.filter((r: any) => r.liveEventId && !haveIds.has(r.liveEventId));
-        if (!add.length) return prev;
-        const next = [...add, ...prev];
+        if (!add.length && !changed) return prev;
+        const next = [...add, ...merged];
         saveRounds(next);
         return next;
       });

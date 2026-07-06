@@ -731,6 +731,15 @@ export async function buildFinishedRoundFromEvent(ev: LiveEvent): Promise<Round>
       }),
     }));
   } catch (e) {}
+  try {
+    const cr: any[] = await fetchContestResults(ev.id);
+    r.contestResults = (cr || []).map((c: any) => ({
+      type: c.type,
+      holeNumber: c.hole_number,
+      winner: c.player_name,
+      metres: c.metres === null || c.metres === undefined ? null : Number(c.metres),
+    }));
+  } catch (e) {}
   r.status = 'finished';
   return r as Round;
 }
