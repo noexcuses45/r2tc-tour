@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import { registerForPush } from './src/logic/liveEvents';
-import { markGroupFinished, fetchMyFinishedRounds, buildFinishedRoundFromEvent, deleteLiveEvent, fetchMessages } from './src/logic/liveEvents';
+import { markGroupFinished, fetchMyFinishedRounds, fetchAllFinishedRounds, buildFinishedRoundFromEvent, deleteLiveEvent, fetchMessages } from './src/logic/liveEvents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
@@ -245,7 +245,9 @@ function AppMain() {
     setRoundTab('score');
   };
 
+  const [allRounds, setAllRounds] = useState<any[]>([]);
   const syncFinishedRounds = async (nm?: string) => {
+    fetchAllFinishedRounds().then((a: any) => setAllRounds(a)).catch(() => {});
     const name = nm || meName;
     if (!name) return;
     try {
@@ -446,7 +448,7 @@ function AppMain() {
   } else if (screen === 'pastrounds') {
     body = (
       <PastRoundsScreen
-        rounds={pastScope === 'r2tc' ? rounds.filter((r: any) => ((r.roundType || 'r2tc') !== 'social')) : rounds}
+        rounds={pastScope === 'r2tc' ? allRounds.filter((r: any) => ((r.roundType || 'r2tc') !== 'social')) : rounds}
           isAdmin={!!meEmail && ADMIN_EMAILS.map((e: string) => e.toLowerCase()).includes(meEmail.toLowerCase())}
           onDelete={onDeleteRound}
         onBack={() => setScreen('home')}

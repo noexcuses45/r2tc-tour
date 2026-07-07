@@ -908,3 +908,17 @@ export async function fetchPlayerContestBests(name: string): Promise<{ longestDr
     return { longestDrive: ld, closestToPin: ctp };
   } catch { return { longestDrive: null, closestToPin: null }; }
 }
+
+
+export async function fetchAllFinishedRounds(): Promise<Round[]> {
+  try {
+    const evs = await fetchFinishedEvents();
+    const out: Round[] = [];
+    for (const ev of (evs || [])) {
+      const fr = await buildFinishedRoundFromEvent(ev);
+      (fr as any).roundType = (((ev as any).config && (ev as any).config.roundType) || 'r2tc');
+      out.push(fr);
+    }
+    return out;
+  } catch (e) { return []; }
+}
