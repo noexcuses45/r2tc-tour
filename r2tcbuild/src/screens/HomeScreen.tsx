@@ -509,15 +509,21 @@ export default function HomeScreen({
       if (!me) return null;
       const entered = me.scores.some((s) => typeof s === 'number');
       if (!entered) return null;
+      const R2TC_TEAM_FMTS = ['scramble_stroke','tscramble_stroke','bb_stroke','bb_stableford','bb_match','tbb_stroke','tbb_stableford','scramble_match','foursome_match','greensome_match','bestball'];
+      if (R2TC_TEAM_FMTS.indexOf((r as any).primaryFormat) !== -1) return null;
+      const _needHoles = Array.isArray((r as any).holeNumbers) ? (r as any).holeNumbers.length : (Array.isArray((r as any).holes) ? (r as any).holes.length : 18);
+      if (me.scores.filter((s) => typeof s === 'number').length < _needHoles) return null;
+      const _exRec = ((r as any).excludeFromRecords || []).map((n: string) => String(n).toLowerCase());
+      if (_exRec.indexOf(meName.toLowerCase()) !== -1) return null;
       const total = me.scores.reduce(
         (a, s) => a + (typeof s === 'number' ? s : 0),
         0,
       );
       let stbTotal = 0;
       try { stbTotal = holeResults(me as any, ((r as any).holes || []) as any).reduce((a: number, h: any) => a + (h.stableford || 0), 0); } catch (e2) {}
-      return { date: r.date, total, stableford: stbTotal };
+      return { date: r.date, total, stableford: stbTotal, round: r };
     })
-    .filter((x): x is { date: string; total: number; stableford: number } => x !== null)
+    .filter((x): x is { date: string; total: number; stableford: number; round: any } => x !== null)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   const lastScore = myRoundTotals.length ? myRoundTotals[0].total : null;
@@ -537,6 +543,8 @@ export default function HomeScreen({
   const bestStableford = myRoundTotals.length
     ? Math.max(...myRoundTotals.map((r) => r.stableford))
     : null;
+  const bestStrokeRoundObj: any = myRoundTotals.length ? (myRoundTotals.reduce((bb: any, x: any) => (x.total < bb.total ? x : bb)) as any).round : null;
+  const bestStablefordRoundObj: any = myRoundTotals.length ? (myRoundTotals.reduce((bb: any, x: any) => (x.stableford > bb.stableford ? x : bb)) as any).round : null;
   const roundsPlayed = myRoundTotals.length;
   const tourFriends = allPlayers.length;
   const myRankRow = (boards?.tourPoints ?? []).find(
@@ -1313,14 +1321,14 @@ export default function HomeScreen({
                   <Text style={styles.pStatVal}>{scoringAvgDec ?? '—'}</Text>
                   <Text style={styles.pStatLbl}>Scoring Avg</Text>
                 </View>
-                <View style={styles.pStat}>
+                <TouchableOpacity style={styles.pStat} activeOpacity={0.7} onPress={() => { if (bestStrokeRoundObj) onViewRound(bestStrokeRoundObj); }}>
                   <Text style={styles.pStatVal}>{bestRound ?? '—'}</Text>
                   <Text style={styles.pStatLbl}>Best Stroke</Text>
-                </View>
-                <View style={styles.pStat}>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.pStat} activeOpacity={0.7} onPress={() => { if (bestStablefordRoundObj) onViewRound(bestStablefordRoundObj); }}>
                   <Text style={styles.pStatVal}>{bestStableford !== null ? bestStableford : '\u2014'}</Text>
                   <Text style={styles.pStatLbl}>Best Stableford</Text>
-                </View>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.pStat} activeOpacity={0.7} onPress={onOpenPastRounds}>
                   <Text style={styles.pStatVal}>{roundsPlayed || '—'}</Text>
                   <Text style={styles.pStatLbl}>Rounds</Text>
@@ -1359,7 +1367,7 @@ export default function HomeScreen({
                 <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
                   <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>FORM · LAST {Math.min(myRoundTotals.length, 10)} ROUNDS (STABLEFORD)</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 74 }}>
-                    {myRoundTotals.slice(0, 10).reverse().map((r: { date: string; total: number; stableford: number }, i: number, arr: { stableford: number }[]) => {
+                    {myRoundTotals.slice(0, 10).reverse().map((r: { date: string; total: number; stableford: number; round?: any }, i: number, arr: { stableford: number }[]) => {
                       const vals = arr.map((x) => Number(x.stableford) || 0);
                       const mx = Math.max.apply(null, vals.concat([1]));
                       const v = Number(r.stableford) || 0;
