@@ -888,3 +888,23 @@ export async function renameEventName(eventId: string, newName: string): Promise
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 }
+
+
+/** A player's personal-best longest drive (max metres) and closest-to-pin (min metres). */
+export async function fetchPlayerContestBests(name: string): Promise<{ longestDrive: number | null; closestToPin: number | null }> {
+  if (!name) return { longestDrive: null, closestToPin: null };
+  try {
+    const res = await fetch(rest('live_contests?select=type,metres&player_name=eq.' + encodeURIComponent(name)), { headers: await authHeaders() });
+    if (!res.ok) return { longestDrive: null, closestToPin: null };
+    const rows: any[] = await res.json();
+    let ld: number | null = null;
+    let ctp: number | null = null;
+    (rows || []).forEach((r) => {
+      const m = typeof r.metres === 'number' ? r.metres : null;
+      if (m === null) return;
+      if (r.type === 'longestDrive') { if (ld === null || m > ld) ld = m; }
+      else if (r.type === 'closestToPin') { if (ctp === null || m < ctp) ctp = m; }
+    });
+    return { longestDrive: ld, closestToPin: ctp };
+  } catch { return { longestDrive: null, closestToPin: null }; }
+}

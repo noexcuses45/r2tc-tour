@@ -47,6 +47,7 @@ import {
   fetchPosts,
   createPost,
   FeedPost,
+  fetchPlayerContestBests,
   uploadMedia,
   deletePost,
   fetchReactions,
@@ -498,6 +499,8 @@ export default function HomeScreen({
         meName.toLowerCase(),
   );
 
+  const [contestBests, setContestBests] = useState<{ longestDrive: number | null; closestToPin: number | null }>({ longestDrive: null, closestToPin: null });
+  useEffect(() => { let alive = true; if (meName) { fetchPlayerContestBests(meName).then((bb) => { if (alive) setContestBests(bb); }); } return () => { alive = false; }; }, [meName]);
   const myRoundTotals = (recentRounds || [])
     .filter((r) => r.status === 'finished')
     .map((r) => {
@@ -1363,6 +1366,18 @@ export default function HomeScreen({
                 <Text style={styles.pMetricLbl}>Tour Rank</Text>
               </View>
             </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
+                <View style={{ flex: 1, backgroundColor: '#0e3b28', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 20, marginBottom: 4 }}>🏌️</Text>
+                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestBests.longestDrive != null ? Math.round(contestBests.longestDrive) + ' m' : '—'}</Text>
+                  <Text style={{ color: '#9fb4a8', fontSize: 11, fontWeight: '700', marginTop: 3 }}>Longest Drive Ever</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#0e3b28', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 20, marginBottom: 4 }}>🎯</Text>
+                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestBests.closestToPin != null ? contestBests.closestToPin + ' m' : '—'}</Text>
+                  <Text style={{ color: '#9fb4a8', fontSize: 11, fontWeight: '700', marginTop: 3 }}>Closest to Pin</Text>
+                </View>
+              </View>
               {myRoundTotals.length >= 2 ? (
                 <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
                   <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>FORM · LAST {Math.min(myRoundTotals.length, 10)} ROUNDS (STABLEFORD)</Text>
