@@ -471,7 +471,7 @@ function AppMain() {
           ) : historyTab === 'settings' && historyCanEdit ? (
             <SettingsScreen round={historyRound as any} onClose={async () => { try { const ev = await getEvent((historyRound as any).liveEventId); if (ev) { const fr = await buildFinishedRoundFromEvent(ev); setHistoryRound(fr as any); } } catch (e) {} setHistoryTab('leaderboard'); }} />
           ) : (
-            <LeaderboardScreen round={historyRound} isAdmin={ADMIN_EMAILS.map((e) => e.toLowerCase()).includes((meEmail || '').toLowerCase())} onRefresh={async () => { try { const ev = await getEvent((historyRound as any).liveEventId); if (ev) { const fr = await buildFinishedRoundFromEvent(ev); setHistoryRound(fr as any); } } catch (e) {} }} />
+            <LeaderboardScreen round={historyRound} isAdmin={ADMIN_EMAILS.map((e) => e.toLowerCase()).includes((meEmail || '').toLowerCase())} onRefresh={async () => { try { const ev = await getEvent((historyRound as any).liveEventId); if (ev) { const fr: any = await buildFinishedRoundFromEvent(ev); setHistoryRound(fr as any); setRounds((prev: any) => { const next = (prev || []).map((x: any) => (x.liveEventId && x.liveEventId === fr.liveEventId ? { ...fr, roundType: x.roundType || fr.roundType } : x)); saveRounds(next); return next; }); } } catch (e) {} }} />
           )}
         </View>
         <View style={styles.tabBar}>
