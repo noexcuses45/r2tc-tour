@@ -47,7 +47,7 @@ import {
   fetchPosts,
   createPost,
   FeedPost,
-  fetchPlayerContestBests,
+  fetchPlayerContestRecords,
   uploadMedia,
   deletePost,
   fetchReactions,
@@ -501,8 +501,8 @@ export default function HomeScreen({
         meName.toLowerCase(),
   );
 
-  const [contestBests, setContestBests] = useState<{ longestDrive: number | null; closestToPin: number | null }>({ longestDrive: null, closestToPin: null });
-  useEffect(() => { let alive = true; if (meName) { fetchPlayerContestBests(meName).then((bb) => { if (alive) setContestBests(bb); }); } return () => { alive = false; }; }, [meName]);
+  const [contestRecs, setContestRecs] = useState<{ ld: any; ctp: any }>({ ld: null, ctp: null });
+  useEffect(() => { let alive = true; if (meName) { fetchPlayerContestRecords(meName).then((bb) => { if (alive) setContestRecs(bb); }); } return () => { alive = false; }; }, [meName]);
   const myRoundTotals = (recentRounds || [])
     .filter((r) => r.status === 'finished')
     .map((r) => {
@@ -1360,13 +1360,15 @@ export default function HomeScreen({
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, paddingHorizontal: 4 }}>
                 <View style={{ flex: 1, backgroundColor: '#0e3b28', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
                   <Text style={{ fontSize: 20, marginBottom: 4 }}>🏌️</Text>
-                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestBests.longestDrive != null ? Math.round(contestBests.longestDrive) + ' m' : '—'}</Text>
+                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestRecs.ld ? Math.round(contestRecs.ld.metres) + ' m' : '—'}</Text>
                   <Text style={{ color: '#9fb4a8', fontSize: 11, fontWeight: '700', marginTop: 3 }}>Longest Drive Ever</Text>
+                    {contestRecs.ld ? <Text style={{ color: '#6f8a7d', fontSize: 9, fontWeight: '600', marginTop: 2, textAlign: 'center' }} numberOfLines={1}>{(contestRecs.ld.course || contestRecs.ld.event || '') + (contestRecs.ld.hole ? ' - Hole ' + contestRecs.ld.hole : '')}</Text> : null}
                 </View>
                 <View style={{ flex: 1, backgroundColor: '#0e3b28', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
                   <Text style={{ fontSize: 20, marginBottom: 4 }}>🎯</Text>
-                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestBests.closestToPin != null ? contestBests.closestToPin + ' m' : '—'}</Text>
+                  <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{contestRecs.ctp ? contestRecs.ctp.metres + ' m' : '—'}</Text>
                   <Text style={{ color: '#9fb4a8', fontSize: 11, fontWeight: '700', marginTop: 3 }}>Closest to Pin</Text>
+                    {contestRecs.ctp ? <Text style={{ color: '#6f8a7d', fontSize: 9, fontWeight: '600', marginTop: 2, textAlign: 'center' }} numberOfLines={1}>{(contestRecs.ctp.course || contestRecs.ctp.event || '') + (contestRecs.ctp.hole ? ' - Hole ' + contestRecs.ctp.hole : '')}</Text> : null}
                 </View>
               </View>
               {myRoundTotals.length >= 2 ? (

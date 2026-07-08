@@ -960,7 +960,7 @@ export async function fetchPlayerContestRecords(name: string): Promise<{ ld: any
         const label = (x: any) => {
           const e = byId[x.eventId];
           if (e) {
-            x.event = e.name || e.course_name || 'R2TC Event';
+            x.event = e.name || e.course_name || 'R2TC Event'; x.course = e.course_name || e.name || 'R2TC Event';
             x.date = (((e.config && e.config.date) || e.created_at || '') + '').slice(0, 10);
           }
         };
