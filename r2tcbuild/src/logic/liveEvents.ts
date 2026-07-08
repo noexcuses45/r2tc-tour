@@ -433,7 +433,7 @@ export async function fetchContestResults(eventId: string): Promise<any[]> {
 import { holeResults } from './scoring';
 export async function fetchPlayerHistory(
   name: string,
-): Promise<{ date: string; course: string; score: number | null; stableford: number | null }[]> {
+): Promise<{ date: string; course: string; score: number | null; stableford: number | null; holeCount: number; format: string; excluded: boolean; incomplete: boolean }[]> {
   if (!name) return [];
   try {
     const events = await fetchFinishedEvents();
@@ -470,6 +470,10 @@ export async function fetchPlayerHistory(
         date: (e.created_at || '').slice(0, 10),
         course: e.name || e.course_name || 'R2TC Event',
         score: strokeTotal || null,
+        holeCount: holeNumbers.length,
+        format: cfg.format || 'stroke',
+        excluded: Array.isArray(cfg.excludeFromRecords) && cfg.excludeFromRecords.indexOf(name) !== -1,
+        incomplete: Array.isArray(cfg.incompletePlayers) && cfg.incompletePlayers.indexOf(name) !== -1,
         stableford,
       };
     });

@@ -51,7 +51,8 @@ export default function PlayerProfileModal({ name, onClose }: { name: string; on
   const totalsArr = (scores || []).map((s) => s.score).filter((v) => typeof v === 'number');
   const roundsCount = totalsArr.length;
   const avg = roundsCount ? (totalsArr.reduce((a, b) => a + b, 0) / roundsCount).toFixed(1) : null;
-  const best = roundsCount ? Math.min.apply(null, totalsArr) : null;
+  const strokeArr = (scores || []).filter((s: any) => (s.holeCount == null || s.holeCount === 18) && !s.excluded && !s.incomplete && (s.format == null || s.format === 'stroke' || s.format === 'stableford')).map((s: any) => s.score).filter((v: any) => typeof v === 'number');
+  const best = strokeArr.length ? Math.min.apply(null, strokeArr) : null;
   const stbArr = (scores || []).map((s: any) => s.stableford).filter((v: any) => typeof v === 'number');
   const bestStb = stbArr.length ? Math.max.apply(null, stbArr) : null;
 
