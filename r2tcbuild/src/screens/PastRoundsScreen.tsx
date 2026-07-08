@@ -15,11 +15,11 @@ export default function PastRoundsScreen({ rounds, onView, onBack, isAdmin, onDe
         {rounds.length === 0 ? (
           <Text style={styles.empty}>No past rounds yet. Finish a round and it will show here.</Text>
         ) : (
-          [...rounds].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).map((r) => (
+          [...rounds].sort((a, b) => (String(a.date || '') < String(b.date || '') ? 1 : String(a.date || '') > String(b.date || '') ? -1 : 0)).map((r) => (
             <TouchableOpacity key={r.id} style={styles.row} onPress={() => onView(r)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{r.name}</Text>
-                <Text style={styles.detail}>{r.courseName} · {new Date(r.date).toLocaleDateString()}</Text>
+                <Text style={styles.detail}>{r.courseName} · {(() => { const _p = String(r.date || '').slice(0, 10).split('-'); return _p.length === 3 ? Number(_p[2]) + '/' + Number(_p[1]) + '/' + _p[0] : String(r.date || ''); })()}</Text>
               </View>
               {isAdmin && onDelete ? (<TouchableOpacity onPress={() => onDelete(r)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }} style={{ paddingHorizontal: 6 }}><Text style={{ fontSize: 20 }}>🗑️</Text></TouchableOpacity>) : null}
               <Text style={styles.chev}>›</Text>
