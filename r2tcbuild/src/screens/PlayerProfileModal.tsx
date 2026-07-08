@@ -11,10 +11,10 @@ import {
   cleanLeaderName,
   PastScore,
 } from '../logic/sheets';
-import { fetchPlayerHistory } from '../logic/liveEvents';
+import { fetchPlayerHistory, fetchPlayerContestRecords } from '../logic/liveEvents';
 import { colors, radius } from '../theme';
 
-export default function PlayerProfileModal({ name, onClose }: { name: string; onClose: () => void }) {
+export default function PlayerProfileModal({ name, onClose, onOpenRound }: { name: string; onClose: () => void; onOpenRound?: (eventId: string) => void }) {
   const [prof, setProf] = useState<Profile | null>(null);
   const [points, setPoints] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,7 @@ export default function PlayerProfileModal({ name, onClose }: { name: string; on
   const [dailyHcp, setDailyHcp] = useState<number | null>(null);
   const [dailyCourse, setDailyCourse] = useState<string>('');
   const [scores, setScores] = useState<PastScore[]>([]);
+  const [bests, setBests] = useState<any>({ ld: null, ctp: null });
 
   useEffect(() => {
     let active = true;
@@ -37,6 +38,8 @@ export default function PlayerProfileModal({ name, onClose }: { name: string; on
         }
         const hist = await fetchPlayerHistory(name);
         if (active) setScores(hist);
+        const cb = await fetchPlayerContestRecords(name);
+        if (active) setBests(cb);
       })();
       const row = ((boards && boards.tourPoints) || []).find(
         (rw: any) => cleanLeaderName(rw.name) === cleanLeaderName(name),
@@ -103,7 +106,23 @@ export default function PlayerProfileModal({ name, onClose }: { name: string; on
               
               {scores && scores.length ? (
                 <View style={styles.scoresBox}>
-                  <Text style={styles.scoresTitle}>R2TC Tournament Scores</Text>
+                  {bests.ld || bests.ctp ? (
+                  <View style={{ width: '100%', marginBottom: 10 }}>
+                    {bests.ld ? (
+                      <TouchableOpacity onPress={() => { if (onOpenRound && bests.ld.eventId) { onClose(); onOpenRound(bests.ld.eventId); } }} style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 }}>
+                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>Longest Drive  {bests.ld.metres}m</Text>
+                        <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }} numberOfLines={1}>{bests.ld.event || ''}{onOpenRound ? '   (view round)' : ''}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {bests.ctp ? (
+                      <TouchableOpacity onPress={() => { if (onOpenRound && bests.ctp.eventId) { onClose(); onOpenRound(bests.ctp.eventId); } }} style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 6 }}>
+                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>Closest to Pin  {bests.ctp.metres}m</Text>
+                        <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }} numberOfLines={1}>{bests.ctp.event || ''}{onOpenRound ? '   (view round)' : ''}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text style={styles.scoresTitle}>R2TC Tournament Scores</Text>
                   {scores.slice(0, 8).map((s, i) => (
                     <View key={i} style={styles.scoreRow}>
                       <Text style={styles.scoreDate}>{s.date}</Text>

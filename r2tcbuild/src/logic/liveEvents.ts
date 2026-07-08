@@ -926,3 +926,50 @@ export async function fetchAllFinishedRounds(): Promise<Round[]> {
     return out;
   } catch (e) { return []; }
 }
+
+
+export async function fetchPlayerContestRecords(name: string): Promise<{ ld: any; ctp: any }> {
+  try {
+    const res = await fetch(
+      rest('live_contests?select=event_id,type,hole_number,metres&player_name=eq.' + encodeURIComponent(name)),
+      { headers: await authHeaders() },
+    );
+    if (!res.ok) return { ld: null, ctp: null };
+    const rows: any[] = await res.json();
+    let ld: any = null;
+    let ctp: any = null;
+    rows.forEach((r: any) => {
+      const m = typeof r.metres === 'number' ? r.metres : parseFloat(r.metres);
+      if (!isFinite(m)) return;
+      if (r.type === 'longestDrive') {
+        if (!ld || m > ld.metres) ld = { metres: m, hole: r.hole_number, eventId: r.event_id };
+      } else if (r.type === 'closestToPin') {
+        if (!ctp || m < ctp.metres) ctp = { metres: m, hole: r.hole_number, eventId: r.event_id };
+      }
+    });
+    const ids = [ld && ld.eventId, ctp && ctp.eventId].filter(Boolean);
+    if (ids.length) {
+      const er = await fetch(
+        rest('live_events?select=id,name,course_name,config,created_at&id=in.(' + ids.join(',') + ')'),
+        { headers: await authHeaders() },
+      );
+      if (er.ok) {
+        const evs: any[] = await er.json();
+        const byId: Record<string, any> = {};
+        evs.forEach((e: any) => { byId[e.id] = e; });
+        const label = (x: any) => {
+          const e = byId[x.eventId];
+          if (e) {
+            x.event = e.name || e.course_name || 'R2TC Event';
+            x.date = (((e.config && e.config.date) || e.created_at || '') + '').slice(0, 10);
+          }
+        };
+        if (ld) label(ld);
+        if (ctp) label(ctp);
+      }
+    }
+    return { ld, ctp };
+  } catch (e) {
+    return { ld: null, ctp: null };
+  }
+}

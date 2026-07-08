@@ -623,6 +623,7 @@ function AppMain() {
         onOpenPastRounds={(scope?: any) => { setPastScope(scope === 'r2tc' ? 'r2tc' : 'all'); setScreen('pastrounds'); }}
         onOpenHistory={() => setScreen('tourhistory')}
         onOpenProfile={() => setScreen('profile')}
+            onOpenRound={(eid: string) => { const r = allRounds.find((x: any) => x && x.id === eid); if (r) { setHistoryFrom('home'); setHistoryRound(r); setHistoryTab('scorecard'); setScreen('history'); } }}
         onOpenMessages={() => { setDmTarget(null); setScreen('messages'); }}
         onOpenReviews={() => setScreen('reviews')}
         onOpenRecords={() => setScreen('records')}

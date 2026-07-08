@@ -82,6 +82,7 @@ interface Props {
   onOpenPastRounds: () => void;
   onOpenHistory: () => void;
   onOpenProfile: () => void;
+  onOpenRound?: (eventId: string) => void;
   onOpenMessages: () => void;
   onOpenReviews: () => void;
   onOpenRecords: () => void;
@@ -182,6 +183,7 @@ export default function HomeScreen({
   onOpenPastRounds,
   onOpenHistory,
   onOpenProfile,
+  onOpenRound,
   onOpenMessages,
   onOpenReviews,
   onOpenRecords,
@@ -1431,7 +1433,7 @@ export default function HomeScreen({
               </View>
             </Modal>
             {viewPlayer && (
-              <PlayerProfileModal name={viewPlayer} onClose={() => setViewPlayer(null)} />
+              <PlayerProfileModal name={viewPlayer} onClose={() => setViewPlayer(null)} onOpenRound={onOpenRound} />
             )}
 
             
