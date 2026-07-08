@@ -526,30 +526,19 @@ export default function HomeScreen({
       );
       let stbTotal = 0;
       try { stbTotal = holeResults(me as any, ((r as any).holes || []) as any).reduce((a: number, h: any) => a + (h.stableford || 0), 0); } catch (e2) {}
-      return { date: r.date, total, stableford: stbTotal, round: r };
+      return { date: r.date, total, stableford: stbTotal, round: r, holes: _needHoles };
     })
-    .filter((x): x is { date: string; total: number; stableford: number; round: any } => x !== null)
+    .filter((x): x is { date: string; total: number; stableford: number; round: any; holes: number } => x !== null)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   const lastScore = myRoundTotals.length ? myRoundTotals[0].total : null;
-  const avgScore = myRoundTotals.length
-    ? Math.round(
-        myRoundTotals.reduce((a, r) => a + r.total, 0) / myRoundTotals.length,
-      )
-    : null;
-  const scoringAvgDec = myRoundTotals.length
-    ? (
-        myRoundTotals.reduce((a, r) => a + r.total, 0) / myRoundTotals.length
-      ).toFixed(1)
-    : null;
-  const bestRound = myRoundTotals.length
-    ? Math.min(...myRoundTotals.map((r) => r.total))
-    : null;
-  const bestStableford = myRoundTotals.length
-    ? Math.max(...myRoundTotals.map((r) => r.stableford))
-    : null;
-  const bestStrokeRoundObj: any = myRoundTotals.length ? (myRoundTotals.reduce((bb: any, x: any) => (x.total < bb.total ? x : bb)) as any).round : null;
-  const bestStablefordRoundObj: any = myRoundTotals.length ? (myRoundTotals.reduce((bb: any, x: any) => (x.stableford > bb.stableford ? x : bb)) as any).round : null;
+  const my18 = (myRoundTotals as any[]).filter((x: any) => x.holes === 18);
+  const avgScore = my18.length ? Math.round(my18.reduce((a: any, r: any) => a + r.total, 0) / my18.length) : null;
+  const scoringAvgDec = my18.length ? (my18.reduce((a: any, r: any) => a + r.total, 0) / my18.length).toFixed(1) : null;
+  const bestRound = my18.length ? Math.min(...my18.map((r: any) => r.total)) : null;
+  const bestStableford = my18.length ? Math.max(...my18.map((r: any) => r.stableford)) : null;
+  const bestStrokeRoundObj: any = my18.length ? (my18.reduce((bb: any, x: any) => (x.total < bb.total ? x : bb)) as any).round : null;
+  const bestStablefordRoundObj: any = my18.length ? (my18.reduce((bb: any, x: any) => (x.stableford > bb.stableford ? x : bb)) as any).round : null;
   const roundsPlayed = myRoundTotals.length;
   const tourFriends = allPlayers.length;
   const myRankRow = (boards?.tourPoints ?? []).find(
