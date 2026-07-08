@@ -64,6 +64,7 @@ import Svg, { Defs, Rect, Circle, LinearGradient as SvgLG, RadialGradient as Svg
 import { Round, TourLeaderboardRow, TourLeaderboards } from '../types';
 
 const LOGO_URL = 'https://static.wixstatic.com/media/f56536_a054d2de22284c2586b610a7ef78b3bc~mv2.png/v1/fill/w_200,h_200,al_c,q_85,enc_auto/logo.png';
+const HEADER_IMG = 'https://static.wixstatic.com/media/f56536_c4b4af2a981548cb98fefe41cf0f48a6~mv2.png/v1/fill/w_1200,h_680,al_c,q_80,enc_auto/header.png';
 const HERO_IMG = 'https://static.wixstatic.com/media/f56536_43aa6393e8da463cb63013115ee5b624~mv2.png';
 
 interface Props {
@@ -679,6 +680,8 @@ export default function HomeScreen({
         }
       >
         <View style={styles.header}>
+          <Image source={{ uri: HEADER_IMG }} style={styles.headerPhoto} resizeMode="cover" />
+          <View style={styles.headerTint} />
           
           
           <View style={styles.headerRow}>
@@ -1730,6 +1733,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: colors.green,
   },
+  headerPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  headerTint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(4,26,16,0.42)' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   brandText: { flexShrink: 1 },
   tourName: {
