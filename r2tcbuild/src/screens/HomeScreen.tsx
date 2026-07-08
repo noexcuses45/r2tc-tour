@@ -1733,7 +1733,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: colors.green,
   },
-  headerPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  headerPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   headerTint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(4,26,16,0.42)' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   brandText: { flexShrink: 1 },
