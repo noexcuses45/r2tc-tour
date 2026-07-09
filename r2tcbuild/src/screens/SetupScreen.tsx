@@ -37,6 +37,7 @@ import {
 interface Props {
   onCancel: () => void;
   onStart: (round: Round) => void;
+  onCreate?: (round: Round) => void;
   liveEventId?: string | null;
   initialRound?: Round;
 }
@@ -47,7 +48,7 @@ const HOLE_OPTIONS: { key: HoleSelection; label: string; sub: string }[] = [
   { key: 'back9', label: 'Back 9', sub: 'Play holes 10–18' },
 ];
 
-export default function SetupScreen({ onCancel, onStart, liveEventId, initialRound }: Props) {
+export default function SetupScreen({ onCancel, onStart, onCreate, liveEventId, initialRound }: Props) {
   const [roundType, setRoundType] = useState<'r2tc' | 'social' | ''>('');
   const [courseName, setCourseName] = useState('');
   const [roundName, setRoundName] = useState('');
@@ -374,7 +375,7 @@ export default function SetupScreen({ onCancel, onStart, liveEventId, initialRou
     await savePlayers(next);
   };
 
-  const start = () => {
+  const start = (asCreate?: boolean) => {
     if (!roundType) { Alert.alert('Choose a round type', 'Tap R2TC Competition or Non Tour Competition at the top first.'); return; }
     const flat = groups.flat();
     if (flat.length === 0) {
@@ -473,7 +474,7 @@ export default function SetupScreen({ onCancel, onStart, liveEventId, initialRou
       status: 'active',
         roundType,
     };
-    onStart(round);
+    if (asCreate && onCreate) { onCreate(round); } else { onStart(round); }
   };
 
   return (
@@ -929,7 +930,8 @@ export default function SetupScreen({ onCancel, onStart, liveEventId, initialRou
         </View>
       </Modal>
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.startBtn} onPress={start}>
+        {!initialRound && onCreate ? (<TouchableOpacity style={styles.createBtn} onPress={() => start(true)}><Text style={styles.createBtnText}>Create round</Text></TouchableOpacity>) : null}
+        <TouchableOpacity style={styles.startBtn} onPress={() => start(false)}>
           <Text style={styles.startBtnText}>{initialRound ? 'Save changes »' : 'Start Round »'}</Text>
         </TouchableOpacity>
       </View>
@@ -1215,4 +1217,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   startBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  createBtn: { backgroundColor: '#0e3b28', borderWidth: 1.5, borderColor: colors.green, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  createBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

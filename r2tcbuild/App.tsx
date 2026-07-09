@@ -164,7 +164,7 @@ function AppMain() {
     if (round.liveEventId) pushLiveScores(round);
   };
 
-  const startRound = async (round: Round) => {
+  const startRound = async (round: Round, goLive: boolean = true) => {
     let r: any = { ...round, createdHere: !round.liveEventId };
     if (!r.liveEventId) {
       try {
@@ -195,6 +195,7 @@ function AppMain() {
         }
       } catch (e) {}
     }
+    if (!goLive) { setScreen('upcoming'); return; }
     setActiveRound(r);
     saveActiveRound(r);
     if (r.liveEventId) pushLiveScores(r);
@@ -370,7 +371,7 @@ function AppMain() {
   let body: React.ReactNode;
   if (screen === 'setup') {
     body = (
-      <SetupScreen onCancel={() => setScreen('home')} onStart={startRound} />
+      <SetupScreen onCancel={() => setScreen('home')} onStart={startRound} onCreate={(r) => startRound(r, false)} />
     );
   } else if (screen === 'fixtures') {
     body = <FixturesScreen onBack={() => setScreen('home')} />;
