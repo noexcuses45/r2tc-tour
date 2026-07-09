@@ -539,7 +539,7 @@ export async function fetchLongestDriveRecords(): Promise<LongestDriveRecord[]> 
   return all
     .map((r) => ({
       rank: parseInt(tidy(r[0] || ''), 10) || 0,
-      name: tidy(r[1] || ''),
+      name: canonicalName(tidy(r[1] || '')),
       course: tidy(r[2] || ''),
       distance: parseInt(tidy(r[3] || ''), 10) || 0,
       hole: tidy(r[4] || ''),
@@ -554,7 +554,7 @@ export async function fetchLongestDriveRecords(): Promise<LongestDriveRecord[]> 
 export async function fetchPlayerLongestDriveRecord(
   name: string,
 ): Promise<{ metres: number; course: string; hole: string; year: string } | null> {
-  const nm = (name || '').trim().toLowerCase();
+  const nm = nameKey(name);
   if (!nm) return null;
   let all: LongestDriveRecord[] = [];
   try {
@@ -564,9 +564,32 @@ export async function fetchPlayerLongestDriveRecord(
   }
   let best: LongestDriveRecord | null = null;
   for (const r of all) {
-    if (r.name.trim().toLowerCase() === nm && (!best || r.distance > best.distance)) best = r;
+    if (nameKey(r.name) === nm && (!best || r.distance > best.distance)) best = r;
   }
   if (!best) return null;
   const m = best.hole.match(/\d+/);
   return { metres: best.distance, course: best.course, hole: m ? m[0] : best.hole, year: best.year };
+}
+
+
+const NAME_CANON: Array<{ keys: string[]; name: string }> = [
+  { keys: ['warrendacosta'], name: 'Warren Da Costa' },
+  { keys: ['seanragozzini', 'seanraggozini', 'seanragozinni', 'seanraggozzini'], name: 'Sean Ragozzini' },
+  { keys: ['dylannandrew', 'dylanandrew', 'dylannandrews', 'dylanandrews'], name: 'Dylann Andrew' },
+];
+
+function nameLetters(s: string): string {
+  return (s || '').toLowerCase().replace(/[^a-z]/g, '');
+}
+
+export function canonicalName(s: string): string {
+  const k = nameLetters(s);
+  for (const c of NAME_CANON) {
+    if (c.keys.indexOf(k) >= 0) return c.name;
+  }
+  return (s || '').trim();
+}
+
+export function nameKey(s: string): string {
+  return nameLetters(canonicalName(s));
 }
