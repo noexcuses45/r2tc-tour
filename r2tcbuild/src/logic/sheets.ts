@@ -580,7 +580,7 @@ const NAME_CANON: Array<{ keys: string[]; name: string }> = [
   { keys: ['warrenayres', 'warrrenayres'], name: 'Warren Ayres' },
   { keys: ['glenngardiner', 'glengardiner'], name: 'Glenn Gardiner' },
   { keys: ['jesseholdsworth', 'jessieholdsworth'], name: 'Jesse Holdsworth' },
-  { keys: ['jordanmargerberg', 'jordanmargenberg'], name: 'Jordan Margerberg' },
+  { keys: ['jordanmargerberg', 'jordanmargenberg'], name: 'Jordan Margenberg' },
 ];
 
 function nameLetters(s: string): string {
