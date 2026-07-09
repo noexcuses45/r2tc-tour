@@ -508,3 +508,44 @@ export async function fetchCourseRecords(): Promise<CourseRecordRow[]> {
     }))
     .filter((r) => r.category && r.course && r.category.toLowerCase() !== 'category');
 }
+
+
+export interface LongestDriveRecord {
+  rank: number;
+  name: string;
+  course: string;
+  distance: number;
+  hole: string;
+  grade: string;
+  year: string;
+}
+
+const LD_RECORDS_GID = '1943875223';
+
+export async function fetchLongestDriveRecords(): Promise<LongestDriveRecord[]> {
+  if (!SHEET_ID) return [];
+  const url =
+    'https://docs.google.com/spreadsheets/d/' +
+    SHEET_ID +
+    '/gviz/tq?tqx=out:json&headers=0&gid=' +
+    LD_RECORDS_GID;
+  const res = await fetch(url, { headers: { Accept: 'text/plain, */*' } });
+  if (!res.ok) throw new Error('Records fetch failed (' + res.status + ')');
+  const txt: string = await Promise.race([
+    res.text(),
+    new Promise<string>((_, rej) => setTimeout(() => rej(new Error('timeout')), 9000)),
+  ]);
+  const all = parseRows(txt);
+  return all
+    .map((r) => ({
+      rank: parseInt(tidy(r[0] || ''), 10) || 0,
+      name: tidy(r[1] || ''),
+      course: tidy(r[2] || ''),
+      distance: parseInt(tidy(r[3] || ''), 10) || 0,
+      hole: tidy(r[4] || ''),
+      grade: tidy(r[5] || '').toUpperCase(),
+      year: tidy(r[6] || ''),
+    }))
+    .filter((r) => !!r.name && r.distance > 0)
+    .sort((a, b) => b.distance - a.distance);
+}
