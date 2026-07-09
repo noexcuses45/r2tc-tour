@@ -32,7 +32,7 @@ import {
   saveActiveRound,
   saveRounds,
 } from './src/storage';
-import { getSession, getProfile, pushRound, deleteRemoteRound } from './src/logic/supabase';
+import { getSession, getProfile, pushRound, deleteRemoteRound, fetchAllPlayers } from './src/logic/supabase';
 import { pushLiveScores, createLiveEvent, buildRoundFromEvent, buildFullRoundFromEvent, findMyGroupIndex, getEvent, updateEventConfig, fetchEventRsvps, updateEventFull, syncRoundRsvps } from './src/logic/liveEvents';
 import { colors } from './src/theme';
 import { Round } from './src/types';
@@ -171,12 +171,18 @@ function AppMain() {
     const groups: any[] = (base.groups || []).map((g: any[]) => g.slice());
     const haveId = new Set(players.map((p: any) => String(p.id).toLowerCase()));
     const haveName = new Set(players.map((p: any) => String(p.name).toLowerCase()));
+    let _tour: any[] = [];
+    try { _tour = (await fetchAllPlayers()) || []; } catch (e3) {}
+    const _byName = new Map<string, any>(); const _byEmail = new Map<string, any>();
+    _tour.forEach((tp: any) => { _byName.set(String(tp.name || '').toLowerCase().trim(), tp); if (tp.email) _byEmail.set(String(tp.email).toLowerCase(), tp); });
     try {
       const rs = await fetchEventRsvps(ev.id);
       for (const rr of (rs || [])) {
         const id = String(rr.player_email).toLowerCase();
         if (haveId.has(id) || haveName.has(String(rr.player_name).toLowerCase())) continue;
-        players.push({ id: rr.player_email, name: rr.player_name, handicap: 0 });
+        const _tp = _byEmail.get(id) || _byName.get(String(rr.player_name || '').toLowerCase().trim());
+        const _h = _tp ? (typeof _tp.handicap === 'number' ? _tp.handicap : Number(_tp.handicap) || 0) : 0;
+        players.push({ id: rr.player_email, name: rr.player_name, handicap: _h });
         haveId.add(id);
         let gi = groups.findIndex((g: any[]) => g.length < 4);
         if (gi < 0) { groups.push([]); gi = groups.length - 1; }
