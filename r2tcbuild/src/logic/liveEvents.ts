@@ -1059,3 +1059,17 @@ export async function updateEventFull(eventId: string, name: string, courseName:
     return { ok: false };
   }
 }
+
+
+export async function syncRoundRsvps(eventId: string, roster: Array<{ player_email: string; player_name: string; group_no: number }>): Promise<void> {
+  try {
+    if (!roster.length) return;
+    const h = await authHeaders();
+    const rows = roster.map((x) => ({ event_id: eventId, player_email: x.player_email, player_name: x.player_name, status: 'playing', group_no: x.group_no }));
+    await fetch(rest('event_rsvps?on_conflict=event_id,player_email'), {
+      method: 'POST',
+      headers: { ...h, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(rows),
+    });
+  } catch (e) {}
+}

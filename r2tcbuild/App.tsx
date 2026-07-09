@@ -33,7 +33,7 @@ import {
   saveRounds,
 } from './src/storage';
 import { getSession, getProfile, pushRound, deleteRemoteRound } from './src/logic/supabase';
-import { pushLiveScores, createLiveEvent, buildRoundFromEvent, buildFullRoundFromEvent, findMyGroupIndex, getEvent, updateEventConfig, fetchEventRsvps, updateEventFull } from './src/logic/liveEvents';
+import { pushLiveScores, createLiveEvent, buildRoundFromEvent, buildFullRoundFromEvent, findMyGroupIndex, getEvent, updateEventConfig, fetchEventRsvps, updateEventFull, syncRoundRsvps } from './src/logic/liveEvents';
 import { colors } from './src/theme';
 import { Round } from './src/types';
 
@@ -197,7 +197,12 @@ function AppMain() {
         contests: r.contests,
         groups: (r.groups || []).map((ids: any[]) => ids.map((id: any) => { const p = (r.players || []).find((pp: any) => pp.id === id); return { id, name: p ? p.name : id, handicap: p ? p.handicap : 0 }; })),
       };
-      if (r.liveEventId) await updateEventFull(r.liveEventId, r.name || '', r.courseName || '', config);
+      if (r.liveEventId) {
+        await updateEventFull(r.liveEventId, r.name || '', r.courseName || '', config);
+        const roster: any[] = [];
+        (config.groups || []).forEach((grp: any[], gi: number) => { grp.forEach((p: any) => { roster.push({ player_email: String(p.id), player_name: p.name, group_no: gi + 1 }); }); });
+        await syncRoundRsvps(r.liveEventId, roster);
+      }
     } catch (e) {}
     setEditRound(null);
     setScreen('upcoming');
