@@ -392,7 +392,7 @@ function AppMain() {
       />
     );
   } else if (screen === 'upcoming') {
-    body = <UpcomingRoundsScreen onBack={() => setScreen('home')} />;
+    body = <UpcomingRoundsScreen onBack={() => setScreen('home')} isAdmin={!!meEmail && ADMIN_EMAILS.map((e: string) => e.toLowerCase()).includes(meEmail.toLowerCase())} />;
   } else if (screen === 'gallery') {
     body = <GalleryScreen onBack={() => setScreen('home')} />;
   } else if (screen === 'live') {

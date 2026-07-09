@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
-import { listOpenEvents, LiveEvent, deleteLiveEvent, fetchEventRsvps, setMyRsvp, myEmail, EventRsvp } from '../logic/liveEvents';
+import { listOpenEvents, LiveEvent, deleteLiveEvent, fetchEventRsvps, setMyRsvp, setRsvpGroup, myEmail, EventRsvp } from '../logic/liveEvents';
 import { getProfile } from '../logic/supabase';
 import { colors, radius } from '../theme';
 
-export default function UpcomingRoundsScreen({ onBack }: { onBack: () => void }) {
+export default function UpcomingRoundsScreen({ onBack, isAdmin }: { onBack: () => void; isAdmin?: boolean }) {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [rsvps, setRsvps] = useState<Record<string, EventRsvp[]>>({});
   const [meEmail, setMeEmail] = useState('');
   const [meName, setMeName] = useState('');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => { let alive = true; (async () => { const em = await myEmail(); if (alive) setMeEmail(em); try { const pr: any = await getProfile(); if (alive && pr && pr.name) setMeName(pr.name); } catch (e) {} })(); return () => { alive = false; }; }, []);
   useEffect(() => { let alive = true; (async () => { const map: Record<string, EventRsvp[]> = {}; await Promise.all((events || []).map(async (ev: any) => { map[ev.id] = await fetchEventRsvps(ev.id); })); if (alive) setRsvps(map); })(); return () => { alive = false; }; }, [events]);
   useEffect(() => {
@@ -43,10 +44,12 @@ export default function UpcomingRoundsScreen({ onBack }: { onBack: () => void })
         const evR = rsvps[ev.id] || [];
         const myIdx = evR.findIndex((r) => (r.player_email || '').toLowerCase() === meEmail);
         const iAmPlaying = myIdx >= 0;
-        const myGroup = myIdx >= 0 ? Math.floor(myIdx / 4) + 1 : 0;
+        const myRec = myIdx >= 0 ? evR[myIdx] : null;
+        const myGroup = myRec && myRec.group_no ? myRec.group_no : (myIdx >= 0 ? Math.floor(myIdx / 4) + 1 : 0);
         const evStart = isNaN(d.getTime()) ? 0 : new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
         const today0 = new Date(); today0.setHours(0, 0, 0, 0);
         const revealed = evStart > 0 && today0.getTime() >= evStart;
+        const canManage = !!isAdmin || (!!cfg.created_by_email && String(cfg.created_by_email).toLowerCase() === meEmail);
             return (
               <View key={ev.id} style={styles.card}>
                 <Text style={styles.date}>{d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
@@ -58,7 +61,8 @@ export default function UpcomingRoundsScreen({ onBack }: { onBack: () => void })
               </TouchableOpacity>
               <Text style={styles.playNote}>{iAmPlaying ? 'Click here to unplay' : 'Click here to play'}</Text>
               {iAmPlaying ? <Text style={styles.groupNote}>{revealed ? ("You're in Group " + myGroup) : "You're in - group revealed on the day"}</Text> : null}
-                <TouchableOpacity style={styles.delBtn} onPress={() => Alert.alert('Delete round', 'Delete "' + ev.name + '"?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => { deleteLiveEvent(ev.id).then((res) => { if (res && res.ok && res.deleted > 0) setEvents((prev) => prev.filter((e) => e.id !== ev.id)); else Alert.alert('Could not delete', (res && res.error) || 'Please try again.'); }); } }])}>
+                {canManage ? (<View style={styles.mgWrap}><TouchableOpacity style={styles.manageBtn} onPress={() => setExpanded((e) => ({ ...e, [ev.id]: !e[ev.id] }))}><Text style={styles.manageTxt}>{expanded[ev.id] ? 'Hide players & groups' : ('Manage players & groups (' + evR.length + ')')}</Text></TouchableOpacity>{expanded[ev.id] ? (evR.length === 0 ? (<Text style={styles.mgEmpty}>No one has clicked Playing yet.</Text>) : (evR.map((rr, ri) => { const g = rr.group_no || Math.floor(ri / 4) + 1; return (<View key={rr.player_email} style={styles.mgRow}><Text style={styles.mgName} numberOfLines={1}>{rr.player_name}</Text><TouchableOpacity style={styles.mgStep} onPress={async () => { await setRsvpGroup(ev.id, rr.player_email, Math.max(1, g - 1)); const fresh = await fetchEventRsvps(ev.id); setRsvps((m) => ({ ...m, [ev.id]: fresh })); }}><Text style={styles.mgStepTxt}>-</Text></TouchableOpacity><Text style={styles.mgGrp}>{'Group ' + g}</Text><TouchableOpacity style={styles.mgStep} onPress={async () => { await setRsvpGroup(ev.id, rr.player_email, g + 1); const fresh = await fetchEventRsvps(ev.id); setRsvps((m) => ({ ...m, [ev.id]: fresh })); }}><Text style={styles.mgStepTxt}>+</Text></TouchableOpacity></View>); }))) : null}</View>) : null}
+              <TouchableOpacity style={styles.delBtn} onPress={() => Alert.alert('Delete round', 'Delete "' + ev.name + '"?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => { deleteLiveEvent(ev.id).then((res) => { if (res && res.ok && res.deleted > 0) setEvents((prev) => prev.filter((e) => e.id !== ev.id)); else Alert.alert('Could not delete', (res && res.error) || 'Please try again.'); }); } }])}>
                   <Text style={styles.delTxt}>Delete round</Text>
                 </TouchableOpacity>
               </View>
@@ -83,6 +87,15 @@ const styles = StyleSheet.create({
   playTxtOn: { color: '#3a5c49' },
   playNote: { color: '#5f7d6e', fontSize: 11, fontWeight: '600', marginTop: 4 },
   groupNote: { color: '#1c6b45', fontSize: 12, fontWeight: '800', marginTop: 6 },
+  mgWrap: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#e3ece6', paddingTop: 10 },
+  manageBtn: { alignSelf: 'flex-start', backgroundColor: '#eef4f0', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  manageTxt: { color: '#1c6b45', fontWeight: '800', fontSize: 13 },
+  mgEmpty: { color: '#5f7d6e', fontSize: 12, marginTop: 8 },
+  mgRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  mgName: { flex: 1, color: '#12241b', fontSize: 14, fontWeight: '700' },
+  mgStep: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#1c6b45', alignItems: 'center', justifyContent: 'center' },
+  mgStepTxt: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  mgGrp: { width: 70, textAlign: 'center', color: '#12241b', fontSize: 13, fontWeight: '800' },
   card: { backgroundColor: '#fff', borderRadius: radius.md, padding: 14, marginBottom: 12 },
   date: { color: colors.green, fontWeight: '800', fontSize: 13, marginBottom: 4 },
   delBtn: { marginTop: 10, alignSelf: 'flex-start', backgroundColor: '#fdecec', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },

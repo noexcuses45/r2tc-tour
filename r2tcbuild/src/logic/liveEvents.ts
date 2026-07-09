@@ -980,12 +980,13 @@ export interface EventRsvp {
   player_name: string;
   status: string;
   created_at: string;
+  group_no?: number | null;
 }
 
 export async function fetchEventRsvps(eventId: string): Promise<EventRsvp[]> {
   try {
     const r = await fetch(
-      rest('event_rsvps?event_id=eq.' + eventId + '&select=player_email,player_name,status,created_at&order=created_at.asc'),
+      rest('event_rsvps?event_id=eq.' + eventId + '&select=player_email,player_name,status,created_at,group_no&order=created_at.asc'),
       { headers: await authHeaders() },
     );
     if (!r.ok) return [];
@@ -1023,6 +1024,20 @@ export async function setMyRsvp(eventId: string, playerName: string, playing: bo
       { method: 'DELETE', headers: { ...h } },
     );
     return d.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+
+export async function setRsvpGroup(eventId: string, playerEmail: string, groupNo: number | null): Promise<boolean> {
+  try {
+    const h = await authHeaders();
+    const r = await fetch(
+      rest('event_rsvps?event_id=eq.' + eventId + '&player_email=eq.' + encodeURIComponent(playerEmail)),
+      { method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ group_no: groupNo }) },
+    );
+    return r.ok;
   } catch (e) {
     return false;
   }
