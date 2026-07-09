@@ -973,3 +973,57 @@ export async function fetchPlayerContestRecords(name: string): Promise<{ ld: any
     return { ld: null, ctp: null };
   }
 }
+
+
+export interface EventRsvp {
+  player_email: string;
+  player_name: string;
+  status: string;
+  created_at: string;
+}
+
+export async function fetchEventRsvps(eventId: string): Promise<EventRsvp[]> {
+  try {
+    const r = await fetch(
+      rest('event_rsvps?event_id=eq.' + eventId + '&select=player_email,player_name,status,created_at&order=created_at.asc'),
+      { headers: await authHeaders() },
+    );
+    if (!r.ok) return [];
+    return (await r.json()) as EventRsvp[];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function myEmail(): Promise<string> {
+  try {
+    const s: any = await getSession();
+    return s && s.email ? String(s.email).toLowerCase() : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+export async function setMyRsvp(eventId: string, playerName: string, playing: boolean): Promise<boolean> {
+  try {
+    const s: any = await getSession();
+    const email = s && s.email ? String(s.email) : '';
+    if (!email) return false;
+    const h = await authHeaders();
+    if (playing) {
+      const r = await fetch(rest('event_rsvps?on_conflict=event_id,player_email'), {
+        method: 'POST',
+        headers: { ...h, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ event_id: eventId, player_email: email, player_name: playerName || email.split('@')[0], status: 'playing' }),
+      });
+      return r.ok;
+    }
+    const d = await fetch(
+      rest('event_rsvps?event_id=eq.' + eventId + '&player_email=eq.' + encodeURIComponent(email)),
+      { method: 'DELETE', headers: { ...h } },
+    );
+    return d.ok;
+  } catch (e) {
+    return false;
+  }
+}
