@@ -129,7 +129,7 @@ export default function CourseRecordsScreen({ onBack }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0a2a1c' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 6, paddingBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 48, paddingBottom: 10 },
   back: { color: '#fff', fontSize: 16, fontWeight: '700', width: 56 },
   title: { flex: 1, textAlign: 'center', color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
