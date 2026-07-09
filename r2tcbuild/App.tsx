@@ -467,7 +467,7 @@ function AppMain() {
     body = (
       <ProfileScreen
         onBack={() => setScreen('home')}
-        url="https://www.r2tctour.com/events"
+        url="https://www.r2tctour.com/canberra-open"
         title="EVENTS & TRIPS"
       />
     );
