@@ -549,3 +549,24 @@ export async function fetchLongestDriveRecords(): Promise<LongestDriveRecord[]> 
     .filter((r) => !!r.name && r.distance > 0)
     .sort((a, b) => b.distance - a.distance);
 }
+
+
+export async function fetchPlayerLongestDriveRecord(
+  name: string,
+): Promise<{ metres: number; course: string; hole: string; year: string } | null> {
+  const nm = (name || '').trim().toLowerCase();
+  if (!nm) return null;
+  let all: LongestDriveRecord[] = [];
+  try {
+    all = await fetchLongestDriveRecords();
+  } catch (e) {
+    return null;
+  }
+  let best: LongestDriveRecord | null = null;
+  for (const r of all) {
+    if (r.name.trim().toLowerCase() === nm && (!best || r.distance > best.distance)) best = r;
+  }
+  if (!best) return null;
+  const m = best.hole.match(/\d+/);
+  return { metres: best.distance, course: best.course, hole: m ? m[0] : best.hole, year: best.year };
+}

@@ -18,7 +18,7 @@ import {
   findNodeHandle,
 } from 'react-native';
 import { SEASON, TOUR_NAME, ADMIN_EMAILS } from '../config';
-import { fetchTourLeaderboards } from '../logic/sheets';
+import { fetchTourLeaderboards, fetchPlayerLongestDriveRecord } from '../logic/sheets';
 import {
   getProfile,
   getSession,
@@ -503,7 +503,7 @@ export default function HomeScreen({
   );
 
   const [contestRecs, setContestRecs] = useState<{ ld: any; ctp: any }>({ ld: null, ctp: null });
-  useEffect(() => { let alive = true; if (meName) { fetchPlayerContestRecords(meName).then((bb) => { if (alive) setContestRecs(bb); }); } return () => { alive = false; }; }, [meName]);
+  useEffect(() => { let alive = true; if (meName) { Promise.all([fetchPlayerContestRecords(meName), fetchPlayerLongestDriveRecord(meName).catch(() => null)]).then(([bb, sheetLd]: any[]) => { if (!alive) return; const base = bb || { ld: null, ctp: null }; let ld = base.ld; if (sheetLd && (!ld || sheetLd.metres > ld.metres)) { ld = { metres: sheetLd.metres, course: sheetLd.course, hole: sheetLd.hole, event: sheetLd.course, year: sheetLd.year }; } setContestRecs({ ld, ctp: base.ctp }); }).catch(() => { if (alive) setContestRecs({ ld: null, ctp: null }); }); } return () => { alive = false; }; }, [meName]);
   const myRoundTotals = (recentRounds || [])
     .filter((r) => r.status === 'finished')
     .map((r) => {
