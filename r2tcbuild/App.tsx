@@ -33,7 +33,7 @@ import {
   saveRounds,
 } from './src/storage';
 import { getSession, getProfile, pushRound, deleteRemoteRound } from './src/logic/supabase';
-import { pushLiveScores, createLiveEvent, buildRoundFromEvent, buildFullRoundFromEvent, findMyGroupIndex, getEvent, updateEventConfig } from './src/logic/liveEvents';
+import { pushLiveScores, createLiveEvent, buildRoundFromEvent, buildFullRoundFromEvent, findMyGroupIndex, getEvent, updateEventConfig, fetchEventRsvps, updateEventFull } from './src/logic/liveEvents';
 import { colors } from './src/theme';
 import { Round } from './src/types';
 
@@ -164,6 +164,44 @@ function AppMain() {
     if (round.liveEventId) pushLiveScores(round);
   };
 
+  const [editRound, setEditRound] = useState<any>(null);
+  const onOpenSettings = async (ev: any) => {
+    const base: any = buildFullRoundFromEvent(ev);
+    const players: any[] = (base.players || []).slice();
+    const groups: any[] = (base.groups || []).map((g: any[]) => g.slice());
+    const haveId = new Set(players.map((p: any) => String(p.id).toLowerCase()));
+    const haveName = new Set(players.map((p: any) => String(p.name).toLowerCase()));
+    try {
+      const rs = await fetchEventRsvps(ev.id);
+      for (const rr of (rs || [])) {
+        const id = String(rr.player_email).toLowerCase();
+        if (haveId.has(id) || haveName.has(String(rr.player_name).toLowerCase())) continue;
+        players.push({ id: rr.player_email, name: rr.player_name, handicap: 0 });
+        haveId.add(id);
+        let gi = groups.findIndex((g: any[]) => g.length < 4);
+        if (gi < 0) { groups.push([]); gi = groups.length - 1; }
+        groups[gi].push(rr.player_email);
+      }
+    } catch (e) {}
+    setEditRound({ ...base, players, groups, liveEventId: ev.id, name: ev.name, courseName: ev.course_name });
+    setScreen('setup');
+  };
+  const saveRoundEdits = async (r: any) => {
+    try {
+      const config = {
+        date: r.date,
+        format: r.primaryFormat,
+        formatSettings: r.formatSettings || {},
+        teams: r.teams || [],
+        roundType: r.roundType || 'r2tc',
+        contests: r.contests,
+        groups: (r.groups || []).map((ids: any[]) => ids.map((id: any) => { const p = (r.players || []).find((pp: any) => pp.id === id); return { id, name: p ? p.name : id, handicap: p ? p.handicap : 0 }; })),
+      };
+      if (r.liveEventId) await updateEventFull(r.liveEventId, r.name || '', r.courseName || '', config);
+    } catch (e) {}
+    setEditRound(null);
+    setScreen('upcoming');
+  };
   const startRound = async (round: Round, goLive: boolean = true) => {
     let r: any = { ...round, createdHere: !round.liveEventId };
     if (!r.liveEventId) {
@@ -371,7 +409,7 @@ function AppMain() {
   let body: React.ReactNode;
   if (screen === 'setup') {
     body = (
-      <SetupScreen onCancel={() => setScreen('home')} onStart={startRound} onCreate={(r) => startRound(r, false)} />
+      <SetupScreen onCancel={() => { setEditRound(null); setScreen(editRound ? 'upcoming' : 'home'); }} onStart={editRound ? saveRoundEdits : startRound} onCreate={editRound ? undefined : ((r) => startRound(r, false))} initialRound={editRound || undefined} liveEventId={editRound ? editRound.liveEventId : undefined} />
     );
   } else if (screen === 'fixtures') {
     body = <FixturesScreen onBack={() => setScreen('home')} />;
@@ -392,7 +430,7 @@ function AppMain() {
       />
     );
   } else if (screen === 'upcoming') {
-    body = <UpcomingRoundsScreen onBack={() => setScreen('home')} isAdmin={!!meEmail && ADMIN_EMAILS.map((e: string) => e.toLowerCase()).includes(meEmail.toLowerCase())} />;
+    body = <UpcomingRoundsScreen onBack={() => setScreen('home')} isAdmin={!!meEmail && ADMIN_EMAILS.map((e: string) => e.toLowerCase()).includes(meEmail.toLowerCase())} onOpenSettings={onOpenSettings} />;
   } else if (screen === 'gallery') {
     body = <GalleryScreen onBack={() => setScreen('home')} />;
   } else if (screen === 'live') {

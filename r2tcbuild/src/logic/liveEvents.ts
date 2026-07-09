@@ -1042,3 +1042,20 @@ export async function setRsvpGroup(eventId: string, playerEmail: string, groupNo
     return false;
   }
 }
+
+
+export async function updateEventFull(eventId: string, name: string, courseName: string, patch: any): Promise<{ ok: boolean }> {
+  try {
+    const ev: any = await getEvent(eventId);
+    if (!ev) return { ok: false };
+    const merged = { ...((ev && ev.config) || {}), ...patch };
+    const res = await fetch(rest('live_events?id=eq.' + eventId), {
+      method: 'PATCH',
+      headers: { ...(await authHeaders()), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ name: name, course_name: courseName, config: merged }),
+    });
+    return { ok: res.ok };
+  } catch (e) {
+    return { ok: false };
+  }
+}
