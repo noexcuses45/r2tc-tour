@@ -77,6 +77,7 @@ export default function PlayerProfileModal({ name, onClose, onOpenRound }: { nam
               </View>
               <Text style={styles.name}>{name}</Text>
               <Text style={styles.meta}>📍 R2TC Tour Member</Text>
+            {prof && (prof as any).golf_id ? <Text style={styles.meta}>Golf Link: {(prof as any).golf_id}</Text> : null}
               <Text style={styles.bio}>{prof && prof.bio ? prof.bio : 'No bio yet.'}</Text>
               <View style={styles.statRow}>
                 <View style={styles.stat}>

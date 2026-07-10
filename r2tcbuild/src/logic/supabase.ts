@@ -294,7 +294,7 @@ export async function upsertProfile(
       email: session.email,
       name: (p.firstName.trim() + ' ' + p.surname.trim()).trim(),
       handicap: p.handicap,
-      golf_id: (p.golfId || '').trim(),
+      ...((p.golfId || '').trim() ? { golf_id: (p.golfId || '').trim() } : {}),
     }),
   });
 }

@@ -1270,6 +1270,7 @@ export default function HomeScreen({
                     <Text style={styles.pEmail}>{session.email}</Text>
                   ) : null}
                   <Text style={styles.pMeta}>📍 R2TC Tour Member</Text>
+                {profile && (profile as any).golf_id ? <Text style={styles.pMeta}>Golf Link: {(profile as any).golf_id}</Text> : null}
                 </View>
               </View>
 
