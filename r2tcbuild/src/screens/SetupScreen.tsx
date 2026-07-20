@@ -67,6 +67,7 @@ export default function SetupScreen({ onCancel, onStart, onCreate, liveEventId, 
   useEffect(() => {
     if (!initialRound || editPreloadedRef.current) return;
     editPreloadedRef.current = true;
+    if (initialRound.date) { const _d = new Date(initialRound.date); if (!isNaN(_d.getTime())) { _d.setHours(0, 0, 0, 0); setRoundDate(_d.toISOString()); } }
     setCourseName(initialRound.courseName || '');
     setSelectedCourseId('edit');
     if (Array.isArray(initialRound.holes) && initialRound.holes.length) setHoles18(initialRound.holes as any);
