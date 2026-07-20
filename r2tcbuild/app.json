@@ -13,7 +13,7 @@
       "backgroundColor": "#0b3d1f"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "R2TC Tour uses your location to show GPS distances to the front, middle and back of the green while you play.",
         "NSCameraUsageDescription": "R2TC Tour uses the camera so you can take photos to share in the feed and chats.",
